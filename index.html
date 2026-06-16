@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beefbar Dinner · Seating Planner</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --line:#2a2f3a;
+    --ink:#e8eaf0; --muted:#9aa3b2; --muted2:#6b7280;
+    --accent:#6ea8fe; --accent2:#3b82f6; --good:#34d399; --warn:#fbbf24; --bad:#f87171;
+    --chip:#222733; --radius:14px;
+    /* category colors */
+    --c-Technology:#5b9bff; --c-HR:#f4a259; --c-Sponsors:#c084fc; --c-Media:#22d3ee;
+    --c-Founder:#34d399; --c-CEO:#f472b6; --c-COO:#a3e635; --c-CFO:#fbbf24;
+    --c-President:#fb7185; --c-Facilitator:#94a3b8; --c-Host:#fde047; --c-Other:#94a3b8;
+    --c-CPO:#fb923c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex; flex-direction:column; height:100vh; overflow:hidden;
+  }
+  header{
+    display:flex; align-items:center; gap:14px; padding:12px 18px;
+    background:linear-gradient(180deg,#191d26,#141821); border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  header h1{font-size:16px;margin:0;font-weight:650;letter-spacing:.2px;white-space:nowrap}
+  header h1 .sub{color:var(--muted);font-weight:400;font-size:12px;margin-left:8px}
+  .spacer{flex:1}
+  .stat{display:flex;flex-direction:column;line-height:1.1;padding:0 10px;border-left:1px solid var(--line)}
+  .stat b{font-size:15px}
+  .stat span{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+  button,select,input{font:inherit;color:inherit}
+  .btn{
+    background:var(--panel2); border:1px solid var(--line); color:var(--ink);
+    padding:7px 12px; border-radius:9px; cursor:pointer; white-space:nowrap;
+  }
+  .btn:hover{border-color:var(--accent);background:#232838}
+  .btn.primary{background:var(--accent2);border-color:var(--accent2);color:#fff}
+  .btn.primary:hover{background:#2f6fd6}
+  .btn.ghost{background:transparent}
+
+  main{display:flex;flex:1;min-height:0}
+  /* ---- table map ---- */
+  #board{flex:1;overflow:auto;padding:18px;display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(264px,1fr));
+    gap:14px;align-content:start}
+  .tnode{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    display:flex;flex-direction:column;transition:border-color .12s,background .12s;
+  }
+  .tnode.drag-over{border-color:var(--accent);background:#1b2230;box-shadow:0 0 0 2px rgba(110,168,254,.25) inset}
+  .tnode.over-cap{border-color:#6b3030}
+  .tnode.over-cap .cap{color:var(--bad)}
+  .tn-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+  .tn-head .num{font-weight:700;font-size:14px}
+  .seatctl{margin-left:auto;display:flex;align-items:center;gap:6px}
+  .seatctl .cap{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;min-width:30px;text-align:center}
+  .seatctl button{width:24px;height:24px;border-radius:7px;border:1px solid var(--line);
+    background:var(--panel2);cursor:pointer;color:var(--muted);line-height:1;font-size:15px}
+  .seatctl button:hover{color:var(--ink);border-color:var(--accent)}
+  .tdel{margin-left:8px;width:24px;height:24px;border-radius:7px;border:1px solid var(--line);
+    background:var(--panel2);cursor:pointer;color:var(--muted);font-size:12px;line-height:1}
+  .tdel:hover{background:var(--bad);border-color:var(--bad);color:#0c0f14}
+  .seats{display:flex;flex-direction:column;gap:7px;padding:10px}
+  .seat-empty{border:1.5px dashed var(--line);border-radius:10px;padding:9px;text-align:center;
+    color:var(--muted2);font-size:11px;letter-spacing:.3px}
+  .tnode.drag-over .seat-empty{border-color:var(--accent);color:var(--accent)}
+
+  /* ---- person card ---- */
+  .person{
+    display:flex;align-items:flex-start;gap:9px;background:var(--chip);
+    border:1px solid var(--line);border-left-width:3px;border-radius:10px;
+    padding:7px 9px;cursor:grab;user-select:none;position:relative;
+  }
+  .person:active{cursor:grabbing}
+  .person.dragging{opacity:.4}
+  .person .nm{font-weight:600;font-size:13px}
+  .person .co{color:var(--muted);font-size:11.5px}
+  .person .ti{color:var(--muted2);font-size:10.5px;margin-top:1px;
+    display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+  .person .body{min-width:0;flex:1}
+  .badges{display:flex;gap:4px;flex-shrink:0;align-items:center}
+  .badge{font-size:9.5px;padding:1px 5px;border-radius:20px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .badge.vip{color:#0f1115;background:var(--warn);border-color:var(--warn);font-weight:700}
+  .badge.din-Yes{color:var(--good);border-color:#1f4d3c;background:#102a20}
+  .badge.din-No,.badge.din-Noresponse{color:var(--bad);border-color:#4d2222;background:#2a1010}
+  .badge.din-Unsure,.badge.din-Cocktails{color:var(--warn);border-color:#4d3f1f;background:#2a2410}
+  .catdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
+  .person .focus{position:absolute;right:6px;bottom:5px;font-size:9px;color:var(--muted2)}
+  .person.dim{opacity:.3}
+  .person.hit{border-color:var(--accent);box-shadow:0 0 0 2px rgba(110,168,254,.4)}
+  .search-info{font-size:11.5px;color:var(--accent);margin-top:8px;min-height:0}
+  .person .del{position:absolute;top:50%;right:6px;transform:translateY(-50%);width:20px;height:20px;
+    border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--muted);
+    font-size:14px;line-height:1;cursor:pointer;opacity:0;transition:opacity .1s;z-index:2}
+  .person:hover .del{opacity:1}
+  .person .del:hover{background:var(--bad);border-color:var(--bad);color:#0c0f14}
+  /* add-person form */
+  .addbtn{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:8px;
+    padding:5px 10px;font-size:12px;cursor:pointer;font-weight:600}
+  .addbtn:hover{border-color:var(--accent)}
+  .addform{display:none;flex-direction:column;gap:6px;margin-top:9px;padding:10px;
+    background:var(--bg);border:1px solid var(--line);border-radius:10px}
+  .addform.open{display:flex}
+  .addform .two{display:flex;gap:6px}
+  .addform input,.addform select{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);
+    border-radius:7px;padding:6px 8px;font-size:12px;color:var(--ink)}
+  .addform input:focus,.addform select:focus{outline:none;border-color:var(--accent)}
+  .addform .acts{display:flex;gap:6px;margin-top:2px}
+  .addform .acts button{flex:1;padding:7px;border-radius:7px;border:1px solid var(--line);cursor:pointer;font-weight:600;font-size:12px}
+  .addform .acts .ok{background:var(--accent2);border-color:var(--accent2);color:#fff}
+  .addform .acts .cancel{background:transparent;color:var(--muted)}
+
+  /* ---- sidebar ---- */
+  #pool{width:340px;flex-shrink:0;border-left:1px solid var(--line);background:var(--panel);
+    display:flex;flex-direction:column;min-height:0}
+  #pool.drag-over{background:#1b2230}
+  .poolhead{padding:12px 14px;border-bottom:1px solid var(--line)}
+  .poolhead .row{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+  .poolhead h2{font-size:13px;margin:0;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+  .count-pill{background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:2px 9px;font-size:12px}
+  #search{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+  #search:focus{outline:none;border-color:var(--accent)}
+  .filters{display:flex;gap:7px;margin-top:9px}
+  .filters select{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:7px 8px;font-size:12px}
+  #poollist{overflow:auto;padding:10px;display:flex;flex-direction:column;gap:7px;flex:1}
+  #poollist-empty{color:var(--muted2);text-align:center;padding:30px 10px;font-size:12px}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 12px;padding:10px 14px;border-top:1px solid var(--line);font-size:10.5px;color:var(--muted)}
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
+  .tip{position:fixed;z-index:50;pointer-events:none;background:#000;border:1px solid var(--line);
+    border-radius:8px;padding:8px 10px;font-size:11.5px;max-width:280px;color:var(--ink);
+    box-shadow:0 8px 24px rgba(0,0,0,.5);display:none;white-space:pre-wrap}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#2a2f3a;border-radius:8px}
+  .tabs{display:flex;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:3px}
+  .tabs button{background:transparent;border:none;color:var(--muted);padding:6px 14px;border-radius:7px;
+    cursor:pointer;font-weight:600;font-size:13px}
+  .tabs button.active{background:var(--accent2);color:#fff}
+  .tabs button:not(.active):hover{color:var(--ink)}
+  /* AI modal */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100}
+  .overlay.open{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;width:560px;max-width:94vw;
+    max-height:90vh;overflow:auto;box-shadow:0 24px 70px rgba(0,0,0,.6)}
+  .modal h3{margin:0;font-size:16px;display:flex;align-items:center;gap:8px}
+  .modal .mhead{display:flex;align-items:center;padding:16px 18px;border-bottom:1px solid var(--line)}
+  .modal .mhead .x{margin-left:auto;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer}
+  .modal .mbody{padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+  .modal label{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px;display:block}
+  .modal input,.modal select,.modal textarea{width:100%;background:var(--bg);border:1px solid var(--line);
+    border-radius:9px;padding:9px 11px;color:var(--ink);font:inherit}
+  .modal input:focus,.modal textarea:focus,.modal select:focus{outline:none;border-color:var(--accent)}
+  .modal textarea{resize:vertical;min-height:72px}
+  .ai-row{display:flex;gap:10px}
+  .ai-row>div{flex:1;min-width:0}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chips button{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:20px;
+    padding:5px 10px;font-size:11.5px;cursor:pointer}
+  .chips button:hover{border-color:var(--accent);color:var(--ink)}
+  .ai-actions{display:flex;gap:9px;align-items:center}
+  .ai-actions .grow{flex:1}
+  .ai-status{font-size:12.5px;color:var(--muted);min-height:18px;white-space:pre-wrap}
+  .ai-status.err{color:var(--bad)}
+  .ai-status.ok{color:var(--good)}
+  .ai-note{font-size:10.5px;color:var(--muted2);line-height:1.4}
+  .key-row{display:flex;gap:8px}
+  .key-row input{flex:1}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--accent);
+    border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:5px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<header>
+  <h1 id="title">Beefbar Dinner<span class="sub" id="subtitle">Seating Planner</span></h1>
+  <div class="tabs">
+    <button data-ev="dinner" class="active">Dinner</button>
+    <button data-ev="summit">Summit</button>
+    <button data-ev="p2p">Peer-to-Peer</button>
+  </div>
+  <div class="stat"><b id="st-seated">0</b><span>Seated</span></div>
+  <div class="stat"><b id="st-pool">0</b><span>Unassigned</span></div>
+  <div class="stat"><b id="st-tables">0</b><span>Tables used</span></div>
+  <div class="spacer"></div>
+  <button class="btn primary" id="btn-ai" title="Make seating changes from a plain-English instruction">✦ AI Assistant</button>
+  <button class="btn" id="btn-auto" title="Group guests into tables by role + VIP/relationship score">⚡ Auto-arrange</button>
+  <button class="btn" id="btn-add">+ Add table</button>
+  <button class="btn" id="btn-export">Export CSV</button>
+  <button class="btn ghost" id="btn-reset">Reset</button>
+</header>
+
+<main>
+  <div id="board"></div>
+
+  <aside id="pool">
+    <div class="poolhead">
+      <div class="row">
+        <h2>Guest Pool</h2>
+        <span class="count-pill" id="pool-count">0</span>
+        <div class="spacer" style="flex:1"></div>
+        <button class="addbtn" id="btn-addperson">+ Add person</button>
+      </div>
+      <div class="addform" id="addform">
+        <div class="two">
+          <input id="ap-first" placeholder="First name">
+          <input id="ap-last" placeholder="Last name">
+        </div>
+        <input id="ap-company" placeholder="Company">
+        <input id="ap-title" placeholder="Job title">
+        <div class="two">
+          <select id="ap-cat"></select>
+          <input id="ap-vip" placeholder="VIP (e.g. 1)">
+        </div>
+        <div class="acts">
+          <button class="ok" id="ap-save">Add to pool</button>
+          <button class="cancel" id="ap-cancel">Cancel</button>
+        </div>
+      </div>
+      <input id="search" placeholder="Search name, company, title…" autocomplete="off">
+      <div class="filters">
+        <select id="f-cat"><option value="">All categories</option></select>
+        <select id="f-din">
+          <option value="">All RSVP</option>
+          <option value="Yes">Attending</option>
+          <option value="Unsure">Unsure</option>
+          <option value="Cocktails">Cocktails</option>
+          <option value="No">Not attending</option>
+          <option value="No response">No response</option>
+        </select>
+      </div>
+      <div class="search-info" id="search-info"></div>
+    </div>
+    <div id="poollist"></div>
+    <div class="legend" id="legend"></div>
+  </aside>
+</main>
+
+<div class="overlay" id="ai-overlay">
+  <div class="modal">
+    <div class="mhead">
+      <h3>✦ AI Seating Assistant</h3>
+      <button class="x" id="ai-close">×</button>
+    </div>
+    <div class="mbody">
+      <div id="ai-key-wrap">
+        <label>Anthropic API key <span style="text-transform:none;color:var(--muted2)">(stored only in this browser)</span></label>
+        <div class="key-row">
+          <input id="ai-key" type="password" placeholder="sk-ant-…" autocomplete="off">
+          <button class="btn" id="ai-key-save">Save</button>
+        </div>
+        <div class="ai-note" id="ai-key-note"></div>
+      </div>
+      <div class="ai-row">
+        <div>
+          <label>Model</label>
+          <select id="ai-model">
+            <option value="claude-opus-4-8">Claude Opus 4.8 (smartest)</option>
+            <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (faster/cheaper)</option>
+            <option value="claude-haiku-4-5">Claude Haiku 4.5 (cheapest)</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label>Instruction</label>
+        <textarea id="ai-prompt" placeholder="e.g. Move all the HR people to one table, or balance VIP tier-1 guests evenly across the tables, or seat Marco Argenti with the founders."></textarea>
+      </div>
+      <div class="chips" id="ai-chips"></div>
+      <div class="ai-actions">
+        <button class="btn primary" id="ai-run">Apply changes</button>
+        <button class="btn" id="ai-undo" disabled>Undo last AI change</button>
+        <span class="grow"></span>
+      </div>
+      <div class="ai-status" id="ai-status"></div>
+      <div class="ai-note" id="ai-foot-note">The current seating &amp; full guest list for this event are sent to Anthropic to compute the changes.</div>
+    </div>
+  </div>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<script>
+const DATA = {
+  dinner: [{"id": 1, "first": "Robert", "last": "Oh", "company": "International Motors", "title": "Chief Digital & Information Officer", "category": "Technology", "dinner": "No", "vip": "46024.0", "focus": "B (guy I meet at Next?) wasn't he chicago? Missed the lookahead", "notes": "Gavin - was a clear followup from IBM think", "table": null, "rawTable": ""}, {"id": 2, "first": "Chandhu", "last": "Nair", "company": "Lowe's", "title": "Senior Vice President, Stores, Data, AI & Innovation", "category": "Technology", "dinner": "No", "vip": "2 (Does he run stores or stores data?)d", "focus": "Gavin", "notes": "", "table": null, "rawTable": ""}, {"id": 3, "first": "Quinn", "last": "Scripter", "company": "Planet Labs", "title": "VP of Engineering", "category": "Technology", "dinner": "Yes", "vip": "46056.0", "focus": "", "notes": "", "table": 1, "rawTable": "1.0"}, {"id": 4, "first": "Sue", "last": "Quackenbush", "company": "Envestnet", "title": "Chief People Officer", "category": "HR", "dinner": "Yes", "vip": "46056.0", "focus": "", "notes": "", "table": 1, "rawTable": "1.0"}, {"id": 5, "first": "Sirsij", "last": "Peshin", "company": "Pfizer", "title": "Chief Procurement Officer, Global Lead - Source to Pay", "category": "COO", "dinner": "Yes", "vip": "46056.0", "focus": "Gavin", "notes": "", "table": 1, "rawTable": "1.0"}, {"id": 6, "first": "Eric", "last": "Pulier", "company": "Vatom", "title": "Founder", "category": "Founder", "dinner": "Yes", "vip": "2/3F", "focus": "", "notes": "", "table": 1, "rawTable": "1.0"}, {"id": 7, "first": "GP", "last": "Barozzi", "company": "Cisco", "title": "VP, Global Chief Technology Officer | People, Policy, and Purpose Org", "category": "Technology", "dinner": "No", "vip": "3.0", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 8, "first": "Andrea", "last": "Markstrom", "company": "Cadwalader", "title": "Chief Information Officer", "category": "Technology", "dinner": "Yes", "vip": "3.0", "focus": "", "notes": "", "table": 2, "rawTable": "2.0"}, {"id": 9, "first": "Afshean", "last": "Talasaz", "company": "Colonial Pipeline", "title": "Former Chief Information Officer", "category": "Technology", "dinner": "Yes", "vip": "3.0", "focus": "", "notes": "", "table": 2, "rawTable": "2.0"}, {"id": 10, "first": "Laura", "last": "Trostle", "company": "Coty", "title": "VP, Information Security and Compliance", "category": "Technology", "dinner": "Yes", "vip": "3.0", "focus": "", "notes": "", "table": 2, "rawTable": "2.0"}, {"id": 11, "first": "Tarun", "last": "Sheshraj", "company": "T-Mobile", "title": "Managing Director - Financial Services, High Tech and Healthcare", "category": "Sponsors", "dinner": "Yes", "vip": "3.0", "focus": "", "notes": "", "table": 2, "rawTable": "2.0"}, {"id": 12, "first": "Tom", "last": "Libretto", "company": "Workhuman", "title": "President", "category": "President", "dinner": "Yes", "vip": "2.0", "focus": "", "notes": "Possible sponsor decent HR table?", "table": 2, "rawTable": "2.0"}, {"id": 13, "first": "Raul", "last": "Valentín", "company": "ABM Industries", "title": "EVP & Chief Human Resources Officer", "category": "HR", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "Not sure I want. Will see", "table": 3, "rawTable": "3.0"}, {"id": 14, "first": "Charlene", "last": "Stoessel", "company": "Boston Scientific", "title": "Senior Vice President, Chief Information Officer", "category": "Technology", "dinner": "No", "vip": "1.0", "focus": "A", "notes": "", "table": null, "rawTable": ""}, {"id": 15, "first": "Marianne", "last": "Johnson", "company": "Cox", "title": "Chief Product Officer", "category": "COO", "dinner": "Yes", "vip": "1.0", "focus": "Gavin", "notes": "move to strong table", "table": 3, "rawTable": "3.0"}, {"id": 16, "first": "Kevin", "last": "Adams", "company": "Edward Jones", "title": "Chief Information Officer", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "A", "notes": "", "table": 3, "rawTable": "3.0"}, {"id": 17, "first": "Keith", "last": "Ferrazzi", "company": "Ferrazzi Greenlight", "title": "Founder & Chairman", "category": "Facilitator", "dinner": "Yes", "vip": "", "focus": "", "notes": "Four tables of 6 and the rest are 5", "table": 3, "rawTable": "3.0"}, {"id": 18, "first": "Jennifer", "last": "Charters", "company": "Lincoln Financial", "title": "EVP & Chief Information Officer", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "A", "notes": "", "table": 3, "rawTable": "3.0"}, {"id": 19, "first": "Miriam", "last": "O'Sullivan", "company": "Boston Scientific", "title": "Senior Vice President and Chief Human Resources Officer", "category": "HR", "dinner": "No", "vip": "1.0", "focus": "B", "notes": "Dietary restrictions: no carrots please.\nMailing address: Boston Scientific Corporation, 300 Boston Scientific Way, Marlborough, MA 01752.\nMobile number:  781-530-6513\nCalendar invites:  Miriam will not be attending the dinner", "table": null, "rawTable": ""}, {"id": 20, "first": "Zulfi", "last": "Jeevanjee", "company": "Allstate", "title": "Executive Vice President & Chief Information Officer", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "", "table": 4, "rawTable": "4.0"}, {"id": 21, "first": "Leigh-Ann", "last": "Russell", "company": "BNY", "title": "Global Head of Engineering and CIO", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "", "table": 4, "rawTable": "4.0"}, {"id": 22, "first": "Curt", "last": "Garner", "company": "Chipotle", "title": "President, Chief Strategy and Technology Officer", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "B", "notes": "", "table": 4, "rawTable": "4.0"}, {"id": 23, "first": "Kelly", "last": "Jones", "company": "Cisco", "title": "Chief People Officer", "category": "HR", "dinner": "Yes", "vip": "1.0", "focus": "A", "notes": "", "table": 4, "rawTable": "4.0"}, {"id": 24, "first": "Kamran", "last": "Ziaee", "company": "Consolidated Edison", "title": "Chief Information Officer", "category": "Technology", "dinner": "No", "vip": "1.0", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 25, "first": "Michele", "last": "Parks", "company": "Cox", "title": "VP of Talent Management", "category": "HR", "dinner": "Yes", "vip": "3.0", "focus": "Gavin", "notes": "", "table": 13, "rawTable": "13.0"}, {"id": 26, "first": "Laura", "last": "Walsh", "company": "Culligan International", "title": "Global CIO", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "a", "notes": "", "table": 5, "rawTable": "5.0"}, {"id": 27, "first": "John", "last": "Roese", "company": "Dell", "title": "Global Chief Technology Officer and Chief AI Officer", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "", "table": 5, "rawTable": "5.0"}, {"id": 28, "first": "Amy", "last": "Gleason", "company": "Doge", "title": "Head of Doge", "category": "HR", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "", "table": 5, "rawTable": "5.0"}, {"id": 29, "first": "Alison", "last": "Magyari", "company": "Eaton", "title": "Vice President, Global IT Business Relationship Management", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "", "table": 5, "rawTable": "5.0"}, {"id": 30, "first": "Marco", "last": "Argenti", "company": "Goldman Sachs", "title": "Chief Information Officer", "category": "Technology", "dinner": "Cocktails", "vip": "1.0", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 31, "first": "Scott", "last": "LeTourneau", "company": "Cox", "title": "EVP, Chief Financial Officer", "category": "CFO", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "", "table": 6, "rawTable": "6.0"}, {"id": 32, "first": "Jonny", "last": "LeRoy", "company": "Grainger", "title": "Chief Technology Officer", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "Gavin", "notes": "", "table": 6, "rawTable": "6.0"}, {"id": 33, "first": "Juan", "last": "Martinez", "company": "Harvard Business Review", "title": "Senior Editor", "category": "Media", "dinner": "No", "vip": "1.0", "focus": "B", "notes": "", "table": 9, "rawTable": "9.0"}, {"id": 34, "first": "Betty", "last": "Larson", "company": "Merck", "title": "Executive Vice President and Chief Human Resources Officer", "category": "HR", "dinner": "No", "vip": "1.0", "focus": "A", "notes": "", "table": null, "rawTable": ""}, {"id": 35, "first": "Jacqueline", "last": "Arthur", "company": "Goldman Sachs", "title": "Head of Human Capital Management", "category": "HR", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "", "table": 4, "rawTable": "4.0"}, {"id": 36, "first": "Mike", "last": "Johnson", "company": "IDEXX", "title": "Executive Vice President & Chief Human Resources Officer", "category": "HR", "dinner": "Yes", "vip": "1.0", "focus": "Gavin", "notes": "", "table": 5, "rawTable": "5.0"}, {"id": 37, "first": "Kathleen", "last": "Noreau", "company": "World Economic Forum", "title": "Head of Strategic Partnerships", "category": "Media", "dinner": "Yes", "vip": "1.0", "focus": "A", "notes": "", "table": 6, "rawTable": "6.0"}, {"id": 38, "first": "Julie", "last": "Fuller", "company": "Zoetis", "title": "EVP, Chief Human Resources Officer and Global Operations", "category": "HR", "dinner": "No", "vip": "1.0", "focus": "B", "notes": "", "table": null, "rawTable": ""}, {"id": 39, "first": "Talvis", "last": "Love", "company": "National Grid", "title": "Group Chief Information and Digital Officer", "category": "Technology", "dinner": "No response", "vip": "1.0", "focus": "A", "notes": "", "table": 6, "rawTable": "6.0"}, {"id": 40, "first": "Deepa", "last": "Soni", "company": "New York Life", "title": "Executive Vice President and Chief Information Officer", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "", "table": 8, "rawTable": "8.0"}, {"id": 41, "first": "Dan", "last": "Roberts", "company": "Oulette & Associates", "title": "CEO", "category": "Facilitator", "dinner": "Yes", "vip": "46024.0", "focus": "", "notes": "", "table": 8, "rawTable": "8.0"}, {"id": 42, "first": "Scott", "last": "Case", "company": "Prudential Financial", "title": "Head of Global Technology and Operations", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "A", "notes": "", "table": 8, "rawTable": "8.0"}, {"id": 43, "first": "Rich", "last": "Hunter", "company": "T-Mobile", "title": "Director Enterprise Sales - Northeast", "category": "Sponsors", "dinner": "Yes", "vip": "3.0", "focus": "", "notes": "", "table": 8, "rawTable": "8.0"}, {"id": 44, "first": "Nick", "last": "Quigley", "company": "World Economic Forum", "title": "Partner Lead, Prof Services and Technology Industries", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "A", "notes": "", "table": 8, "rawTable": "8.0"}, {"id": 45, "first": "Helen", "last": "Walters", "company": "TED", "title": "Head of Media and Curation", "category": "Media", "dinner": "No", "vip": "1.0", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 46, "first": "Gil", "last": "Tiamsic", "company": "TED", "title": "Senior Director of Brand Partnerships", "category": "Media", "dinner": "Yes", "vip": "3.0", "focus": "", "notes": "", "table": 13, "rawTable": "13.0"}, {"id": 47, "first": "Christa", "last": "Emerson", "company": "UnitedHealth Group", "title": "Senior Vice President, People Team", "category": "HR", "dinner": "No", "vip": "1.0", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 48, "first": "Anup", "last": "Malani", "company": "U.S. Dept. of Health and Human Services", "title": "Chief Economist", "category": "Media", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "", "table": 9, "rawTable": "9.0"}, {"id": 49, "first": "Jon", "last": "Couture", "company": "Vanguard", "title": "Managing Director and Chief Human Resources Officer", "category": "HR", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "", "table": 9, "rawTable": "9.0"}, {"id": 50, "first": "Julia", "last": "Anderson", "company": "Wella", "title": "Chief Digital and Information Officer (CDIO)", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "", "table": 9, "rawTable": "9.0"}, {"id": 51, "first": "Paul", "last": "Hlivko", "company": "Wellmark Blue Cross Blue Shield", "title": "Chief Information Officer, Optum Financial", "category": "Technology", "dinner": "No response", "vip": "1.0", "focus": "?", "notes": "", "table": 9, "rawTable": "9.0"}, {"id": 52, "first": "John", "last": "Balsavage", "company": "A&I Solutions", "title": "President", "category": "President", "dinner": "Yes", "vip": "2.0", "focus": "", "notes": "", "table": 10, "rawTable": "10.0"}, {"id": 53, "first": "Kayla", "last": "Oliver", "company": "ABM Industries", "title": "VP, Product, Partnerships, and Innovation", "category": "Technology", "dinner": "No", "vip": "2.0", "focus": "", "notes": "", "table": 10, "rawTable": "10.0"}, {"id": 54, "first": "Kamal", "last": "Natarajan", "company": "Allstate", "title": "SVP and CIO, Property-Liability and Protection Services Businesses - The Allstate Corporation", "category": "Technology", "dinner": "Yes", "vip": "2.0", "focus": "", "notes": "", "table": 10, "rawTable": "10.0"}, {"id": 55, "first": "Aimee", "last": "George", "company": "Booz Allen Hamilton", "title": "Chief People Officer", "category": "HR", "dinner": "Yes", "vip": "2.0", "focus": "", "notes": "", "table": 10, "rawTable": "10.0"}, {"id": 56, "first": "Srini", "last": "Namineni", "company": "Cisco", "title": "Chief Automation Officer (CIO and Enterprise AI)", "category": "Technology", "dinner": "Yes", "vip": "2.0", "focus": "", "notes": "", "table": 10, "rawTable": "10.0"}, {"id": 57, "first": "Cheryl", "last": "Keeler", "company": "T-Mobile", "title": "VP, Strategic Accounts", "category": "Sponsors", "dinner": "Yes", "vip": "2.0", "focus": "", "notes": "", "table": 10, "rawTable": "10.0"}, {"id": 58, "first": "Rob", "last": "LoCascio", "company": "Uare", "title": "Founder & Investor", "category": "Founder", "dinner": "Unsure", "vip": "2 F", "focus": "A", "notes": "", "table": 7, "rawTable": "7.0"}, {"id": 59, "first": "Nicholas", "last": "Parrotta", "company": "Johnson & Johnson", "title": "Chief Information Officer, DePuy Synthes", "category": "Technology", "dinner": "No", "vip": "1.0", "focus": "A", "notes": "", "table": null, "rawTable": ""}, {"id": 60, "first": "Motti", "last": "Finkelstein", "company": "EMDO", "title": "CEO", "category": "CEO", "dinner": "No response", "vip": "2.0", "focus": "", "notes": "", "table": 11, "rawTable": "11.0"}, {"id": 61, "first": "Pravir", "last": "Gupta", "company": "Google", "title": "VP & GM, Google Cloud Business Platform", "category": "Technology", "dinner": "Yes", "vip": "2.0", "focus": "", "notes": "", "table": 11, "rawTable": "11.0"}, {"id": 62, "first": "Luis", "last": "Paarup", "company": "Happy Robot", "title": "CTO & Co-Founder", "category": "Technology", "dinner": "No response", "vip": "2 F", "focus": "", "notes": "", "table": 7, "rawTable": "7.0"}, {"id": 63, "first": "Susannah", "last": "Greenberg", "company": "L'Oreal", "title": "Chief Information Officer, Americas", "category": "Technology", "dinner": "Yes", "vip": "2.0", "focus": "", "notes": "", "table": 11, "rawTable": "11.0"}, {"id": 64, "first": "Kathy", "last": "Flynn", "company": "Lumen Technologies", "title": "SVP HR Solutions & People Strategist", "category": "Technology", "dinner": "Yes", "vip": "2.0", "focus": "Gavin", "notes": "", "table": 11, "rawTable": "11.0"}, {"id": 65, "first": "Frank", "last": "Congiu", "company": "Randstad", "title": "EVP", "category": "Facilitator", "dinner": "Yes", "vip": "2.0", "focus": "", "notes": "", "table": 11, "rawTable": "11.0"}, {"id": 66, "first": "Luani", "last": "Alvarado", "company": "Johnson & Johnson", "title": "Chief People Officer, DePuy Synthes", "category": "HR", "dinner": "No", "vip": "2.0", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 67, "first": "Rashmi", "last": "Kumar", "company": "Medtronic", "title": "SVP and Global CIO", "category": "Technology", "dinner": "Yes", "vip": "2.0", "focus": "", "notes": "", "table": 12, "rawTable": "12.0"}, {"id": 68, "first": "Nick", "last": "Lichtenberg", "company": "Fortune", "title": "Journalist", "category": "Media", "dinner": "Unsure", "vip": "2.0", "focus": "", "notes": "", "table": 12, "rawTable": "12.0"}, {"id": 69, "first": "Matt", "last": "Candy", "company": "IBM", "title": "Managing Partner, Strategy & Transformation", "category": "Sponsors", "dinner": "Yes", "vip": "3.0", "focus": "", "notes": "", "table": 12, "rawTable": "12.0"}, {"id": 70, "first": "Mike", "last": "Ferris", "company": "Red Hat", "title": "Senior VP, Chief Strategy Officer and Chief Operating Officer", "category": "Technology", "dinner": "Yes", "vip": "2.0", "focus": "", "notes": "", "table": 12, "rawTable": "12.0"}, {"id": 71, "first": "Wendy", "last": "Bounds", "company": "Wall Street Journal", "title": "SVP & Head of Content", "category": "Media", "dinner": "Yes", "vip": "2.0", "focus": "", "notes": "", "table": 12, "rawTable": "12.0"}, {"id": 72, "first": "Paul", "last": "Cao", "company": "Wells Fargo", "title": "Global Head, Enterprise Data Platform", "category": "Technology", "dinner": "Yes", "vip": "2.0", "focus": "", "notes": "", "table": 12, "rawTable": "12.0"}, {"id": 73, "first": "Marc", "last": "Gilbert", "company": "Zocks", "title": "Co-Founder and CEO", "category": "CEO", "dinner": "Yes", "vip": "2 F", "focus": "", "notes": "", "table": 7, "rawTable": "7.0"}, {"id": 74, "first": "Stephanie", "last": "Fehr", "company": "UnitedHealth Group", "title": "Chief Human Resources Officer", "category": "HR", "dinner": "No", "vip": "46056.0", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 75, "first": "Matthew", "last": "Harrison", "company": "Cox", "title": "VP | Talent, Learning & Organizational Effectiveness", "category": "HR", "dinner": "Yes", "vip": "3.0", "focus": "", "notes": "", "table": 13, "rawTable": "13.0"}, {"id": 76, "first": "Manjeet", "last": "Singh", "company": "DHL", "title": "", "category": "Other", "dinner": "Unsure", "vip": "3.0", "focus": "", "notes": "", "table": 13, "rawTable": "13.0"}, {"id": 77, "first": "Marshall", "last": "Wright", "company": "IBM", "title": "Principal, Marketing Strategy - ABM and Demand Marketing, Global Markets", "category": "Sponsors", "dinner": "Yes", "vip": "3.0", "focus": "", "notes": "", "table": 13, "rawTable": "13.0"}, {"id": 78, "first": "Nick", "last": "Tzitzon", "company": "ServiceNow", "title": "Vice Chairman", "category": "Sponsors", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "", "table": 3, "rawTable": "3.0"}, {"id": 79, "first": "Jacqueline", "last": "Nevils", "company": "Fresenius Medical Care", "title": "Global Chief Information Officer", "category": "Technology", "dinner": "No", "vip": "1.0", "focus": "A", "notes": "", "table": null, "rawTable": ""}, {"id": 80, "first": "Baker", "last": "Smith", "company": "Aramark", "title": "Chief Information Officer", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "B", "notes": "", "table": 14, "rawTable": "14.0"}, {"id": 81, "first": "Shannon", "last": "Hobbs", "company": "BNY", "title": "Chief People Officer", "category": "HR", "dinner": "Unsure", "vip": "1.0", "focus": "", "notes": "", "table": 14, "rawTable": "14.0"}, {"id": 82, "first": "Tyler", "last": "Derr", "company": "Broadridge Financial Solutions", "title": "Chief Technology Officer", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "", "table": 14, "rawTable": "14.0"}, {"id": 83, "first": "George", "last": "Fischer", "company": "T-Mobile", "title": "Executive Vice President, T-Mobile for Business Sales, Customer Experience and Delivery", "category": "Sponsors", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "", "table": 5, "rawTable": "5.0"}, {"id": 84, "first": "Leena", "last": "Patel", "company": "Airgas", "title": "Vice President of Digital & IT and CIO", "category": "Technology", "dinner": "Yes", "vip": "1.0", "focus": "", "notes": "", "table": 14, "rawTable": "14.0"}, {"id": 85, "first": "Kathryn", "last": "Diaz", "company": "Cognizant", "title": "Chief People Officer", "category": "HR", "dinner": "Yes", "vip": "1 , she is global and they are huge", "focus": "A", "notes": "", "table": 14, "rawTable": "14.0"}, {"id": 86, "first": "Sushma", "last": "Panuru", "company": "Global Payments", "title": "EVP, Global Chief Data Officer", "category": "Technology", "dinner": "No response", "vip": "1, HUGE reports to CIO", "focus": "", "notes": "", "table": 14, "rawTable": "14.0"}, {"id": 87, "first": "Spiros", "last": "Xanthos", "company": "ResolveAI", "title": "Founder and CEO", "category": "CEO", "dinner": "Yes", "vip": "1 F", "focus": "", "notes": "", "table": 4, "rawTable": "4.0"}, {"id": 88, "first": "Dave", "last": "Weinstein", "company": "Standard Industries", "title": "Global CISO and SVP, Data & AI", "category": "Technology", "dinner": "No", "vip": "2.0", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 89, "first": "Darrin", "last": "Hebert", "company": "Securian", "title": "SVP & Chief Information Officer", "category": "Technology", "dinner": "No", "vip": "2.0", "focus": "B (guy I meet at Next?) wasn't he chicago? Missed the lookahead", "notes": "", "table": null, "rawTable": ""}, {"id": 90, "first": "Andrew", "last": "Antos", "company": "Klarity", "title": "", "category": "Founder", "dinner": "Yes", "vip": "2 F", "focus": "", "notes": "", "table": 7, "rawTable": "7.0"}, {"id": 91, "first": "Yoshika", "last": "Rankin", "company": "Lowe's", "title": "Senior Vice President, Human Resources Business Partner", "category": "HR", "dinner": "No response", "vip": "2 (is she direct report to CHRO? YES)", "focus": "Gavin", "notes": "", "table": 11, "rawTable": "11.0"}, {"id": 92, "first": "Becca", "last": "Hagen", "company": "Securian", "title": "Vice President Human Resources", "category": "HR", "dinner": "No", "vip": "3.0", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 93, "first": "Mo", "last": "Katibeh", "company": "T-Mobile", "title": "Executive Vice President - Chief Marketing & Product Officer - Business", "category": "Sponsors", "dinner": "Cocktails", "vip": "", "focus": "", "notes": "", "table": null, "rawTable": "n/a"}, {"id": 94, "first": "Laura", "last": "Fuentes", "company": "Hilton", "title": "Executive Vice President, Chief Human Resources Officer and Hilton Supply Management", "category": "HR", "dinner": "No", "vip": "1.0", "focus": "B", "notes": "", "table": null, "rawTable": "n/a"}, {"id": 95, "first": "Richard", "last": "Burke", "company": "Johnson & Johnson", "title": "VP, Enterprise Applications, DePuy Synthes", "category": "Technology", "dinner": "No", "vip": "2.0", "focus": "", "notes": "", "table": null, "rawTable": "n/a"}, {"id": 96, "first": "Josh", "last": "Newman", "company": "ServiceNow", "title": "Vice President, Workforce Skills & Talent Readiness", "category": "HR", "dinner": "No", "vip": "46085.0", "focus": "", "notes": "", "table": null, "rawTable": "n/a"}, {"id": 97, "first": "Kyrrha", "last": "Martin", "company": "Ferrazzi Greenlight", "title": "", "category": "Host", "dinner": "Yes", "vip": "", "focus": "", "notes": "", "table": null, "rawTable": "Plug into somewhere"}, {"id": 98, "first": "Gavin", "last": "Mckay", "company": "Ferrazzi Greenlight", "title": "President", "category": "Host", "dinner": "Yes", "vip": "", "focus": "", "notes": "", "table": null, "rawTable": "Plug into somewhere"}, {"id": 99, "first": "Ayesha", "last": "Johnson", "company": "Fortune", "title": "Senior Director, Strategy", "category": "Media", "dinner": "No", "vip": "3.0", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 100, "first": "Cameron", "last": "Leax", "company": "ICONIQ", "title": "CHRO", "category": "Other", "dinner": "No", "vip": "", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 101, "first": "Alanna", "last": "Klassen Jamjoum", "company": "Kearney", "title": "Partner and Global Head of Kearney Alliances", "category": "HR", "dinner": "No", "vip": "Observing", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 102, "first": "Trey", "last": "Whitney", "company": "Planet Labs", "title": "Chief People Officer", "category": "HR", "dinner": "Yes", "vip": "46056.0", "focus": "", "notes": "may leave dinner early", "table": null, "rawTable": ""}, {"id": 103, "first": "Arjun", "last": "Prakash", "company": "Distyl", "title": "Co-founder, CEO", "category": "Founder", "dinner": "No", "vip": "1 F", "focus": "", "notes": "", "table": 6, "rawTable": "6.0"}, {"id": 104, "first": "Kai", "last": "Werner", "company": "Ferrazzi Greenlight", "title": "", "category": "Host", "dinner": "Yes", "vip": "", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 105, "first": "Bob", "last": "Toohey", "company": "FIS", "title": "Chief People Officer", "category": "HR", "dinner": "Yes", "vip": "2.0", "focus": "", "notes": "", "table": 2, "rawTable": "2.0"}, {"id": 106, "first": "Hahnbee", "last": "Lee", "company": "Mintlify", "title": "Co Founder", "category": "Founder", "dinner": "Yes", "vip": "2 F", "focus": "", "notes": "", "table": 7, "rawTable": "7.0"}, {"id": 107, "first": "Kimberly", "last": "Stewart", "company": "Radical Innovators Collaborative", "title": "General Manager", "category": "Host", "dinner": "Yes", "vip": "", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 108, "first": "Weijia", "last": "Yu", "company": "Retall AI", "title": "CEO", "category": "Founder", "dinner": "Yes", "vip": "2 F", "focus": "", "notes": "", "table": 7, "rawTable": "7.0"}, {"id": 109, "first": "Nate", "last": "Yohannes", "company": "Zeta Global: Nate Yohannes, President, AI & Data Labs", "title": "President AI & Data Labs", "category": "Technology", "dinner": "No response", "vip": "3.0", "focus": "", "notes": "", "table": 1, "rawTable": "1.0"}, {"id": 110, "first": "Joon", "last": "", "company": "Simile", "title": "", "category": "Other", "dinner": "Yes", "vip": "2 F", "focus": "", "notes": "", "table": 7, "rawTable": "7.0"}, {"id": 111, "first": "Panos", "last": "Madamopoulos-Moraris", "company": "LMArena", "title": "", "category": "Other", "dinner": "Yes", "vip": "2 F", "focus": "", "notes": "Running late coming between 6:30 and 7", "table": 13, "rawTable": "13.0"}, {"id": 112, "first": "Marissa", "last": "Zanetti-Crume", "company": "Bloomberg", "title": "Global Head of Product", "category": "Technology", "dinner": "", "vip": "", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 113, "first": "Derek", "last": "Hu", "company": "Distyl", "title": "Co-founder & COO", "category": "Other", "dinner": "", "vip": "2 F", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 114, "first": "Shannon", "last": "Spottswood", "company": "RFG", "title": "", "category": "Other", "dinner": "", "vip": "", "focus": "", "notes": "", "table": null, "rawTable": ""}],
+  summit: [{"id": 1, "first": "John", "last": "Balsavage", "company": "A&I Solutions/Scout", "title": "President", "category": "Other", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 2, "first": "Raul", "last": "Valentín", "company": "ABM Industries", "title": "Chief Human Resources Officer", "category": "HR", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 3, "first": "Kayla", "last": "Oliver", "company": "ABM Industries", "title": "Head of Innovation", "category": "Other", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 4, "first": "Leena", "last": "Patel", "company": "Airgas", "title": "Former Vice President of Digital & IT and CIO", "category": "Technology", "dinner": "", "vip": "?", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 5, "first": "Zulfi", "last": "Jeevanjee", "company": "Allstate", "title": "Executive Vice President & Chief Information Officer", "category": "Technology", "dinner": "Yes", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 6, "first": "Kamal", "last": "Natarajan", "company": "Allstate", "title": "SVP and CIO, Property-Liability and Protection Services Businesses", "category": "Technology", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 7, "first": "Baker", "last": "Smith", "company": "Aramark", "title": "Chief Information Officer", "category": "Technology", "dinner": "", "vip": "1", "focus": "B", "notes": "", "table": null, "rawTable": ""}, {"id": 8, "first": "Leigh-Ann", "last": "Russell", "company": "BNY", "title": "Global Head of Engineering and CIO", "category": "Sponsors", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 9, "first": "Shannon", "last": "Hobbs", "company": "BNY", "title": "Chief People Officer", "category": "Sponsors", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 10, "first": "Aimee", "last": "George", "company": "Booz Allen Hamilton", "title": "Chief People Officer", "category": "HR", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 11, "first": "Charlene", "last": "Stoessel", "company": "Boston Scientific", "title": "Senior Vice President, Chief Information Officer", "category": "Technology", "dinner": "", "vip": "1", "focus": "A", "notes": "", "table": null, "rawTable": ""}, {"id": 12, "first": "Miriam", "last": "O'Sullivan", "company": "Boston Scientific", "title": "Chief Human Resources Officer", "category": "HR", "dinner": "", "vip": "1", "focus": "B", "notes": "", "table": null, "rawTable": ""}, {"id": 13, "first": "Tyler", "last": "Derr", "company": "Broadridge Financial Solutions", "title": "Chief Technology Officer", "category": "Technology", "dinner": "", "vip": "?", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 14, "first": "Andrea", "last": "Markstrom", "company": "Cadwalader", "title": "Chief Information Officer", "category": "Technology", "dinner": "", "vip": "3", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 15, "first": "Curt", "last": "Garner", "company": "Chipotle", "title": "President, Chief Strategy and Technology Officer", "category": "Other", "dinner": "", "vip": "1", "focus": "B", "notes": "", "table": null, "rawTable": ""}, {"id": 16, "first": "Kelly", "last": "Jones", "company": "Cisco", "title": "Chief People Officer", "category": "CPO", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 17, "first": "Srini", "last": "Namineni", "company": "Cisco", "title": "Chief Automation Officer", "category": "Technology", "dinner": "Yes", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 18, "first": "Gianpaolo", "last": "Barozzi", "company": "Cisco", "title": "VP, Global Chief Technology & Innovation Officer", "category": "Technology", "dinner": "Yes", "vip": "3", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 19, "first": "Kathryn", "last": "Diaz", "company": "Cognizant", "title": "Chief Human Resources Officer", "category": "HR", "dinner": "", "vip": "1/2?", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 20, "first": "Afshean", "last": "Talasaz", "company": "Colonial Pipeline", "title": "Former Chief Information Officer", "category": "Technology", "dinner": "", "vip": "3", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 21, "first": "Kamran", "last": "Ziaee", "company": "Consolidated Edison", "title": "Chief Information Officer", "category": "Technology", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 22, "first": "Laura", "last": "Trostle", "company": "Coty", "title": "Vice President, Information Security and Compliance", "category": "Technology", "dinner": "", "vip": "3", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 23, "first": "Michele", "last": "Parks", "company": "Cox", "title": "Chief People Officer", "category": "CPO", "dinner": "", "vip": "1", "focus": "Gavin", "notes": "", "table": null, "rawTable": ""}, {"id": 24, "first": "Scott", "last": "LeTourneau", "company": "Cox", "title": "Chief Financial Officer", "category": "CFO", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 25, "first": "Marianne", "last": "Johnson", "company": "Cox", "title": "Chief Product Officer", "category": "HR", "dinner": "", "vip": "1", "focus": "A", "notes": "", "table": null, "rawTable": ""}, {"id": 26, "first": "Matthew", "last": "Harrison", "company": "Cox", "title": "Vice President of Talent, Learning & Organizational Effectiveness", "category": "HR", "dinner": "", "vip": "3", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 27, "first": "Laura", "last": "Walsh", "company": "Culligan International", "title": "Global Chief Information Officer", "category": "Technology", "dinner": "", "vip": "1", "focus": "?", "notes": "", "table": null, "rawTable": ""}, {"id": 28, "first": "John", "last": "Roese", "company": "Dell", "title": "Global Chief Technology Officer and Chief AI Officer", "category": "Technology", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 29, "first": "Manjit", "last": "Singh", "company": "DHL", "title": "", "category": "Other", "dinner": "", "vip": "3", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 30, "first": "Arjun", "last": "Prakash", "company": "Distyl", "title": "Founder", "category": "Founder", "dinner": "", "vip": "1F", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 31, "first": "Amy", "last": "Gleason", "company": "Doge", "title": "Head of Doge", "category": "HR", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 32, "first": "Alison", "last": "Magyari", "company": "Eaton", "title": "VP, Information Technology, Global Business Relationship Management", "category": "Technology", "dinner": "Yes", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 33, "first": "Kevin", "last": "Adams", "company": "Edward Jones", "title": "Chief Information Officer", "category": "Technology", "dinner": "", "vip": "1", "focus": "A", "notes": "", "table": null, "rawTable": ""}, {"id": 34, "first": "Motti", "last": "Finkelstein", "company": "EMDO", "title": "CEO", "category": "CEO", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 35, "first": "Sue", "last": "Quackenbush", "company": "Envestnet", "title": "Chief People Officer", "category": "HR", "dinner": "", "vip": "2/3", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 36, "first": "Matan", "last": "", "company": "Factory AI", "title": "", "category": "Other", "dinner": "", "vip": "2 F", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 37, "first": "Keith", "last": "Ferrazzi", "company": "Ferrazzi Greenlight", "title": "Founder & Chairman", "category": "Facilitator", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 38, "first": "Gavin", "last": "Mckay", "company": "Ferrazzi Greenlight", "title": "President", "category": "Host", "dinner": "", "vip": "", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 39, "first": "Kyrrha", "last": "Martin", "company": "Ferrazzi Greenlight", "title": "", "category": "Host", "dinner": "", "vip": "", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 40, "first": "Kai", "last": "Werner", "company": "Ferrazzi Greenlight", "title": "", "category": "Host", "dinner": "", "vip": "", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 41, "first": "Nick", "last": "Lichtenberg", "company": "Fortune", "title": "Journalist", "category": "Media", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 42, "first": "Ayesha", "last": "Johnson", "company": "Fortune", "title": "Senior Director, Strategy", "category": "Media", "dinner": "No", "vip": "3", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 43, "first": "Jacqueline", "last": "Nevils", "company": "Fresenius Medical Care", "title": "Global CIO and SVP of Global Digital Technology & Innovation", "category": "Technology", "dinner": "", "vip": "?", "focus": "?", "notes": "", "table": null, "rawTable": ""}, {"id": 44, "first": "Sushma", "last": "Panuru", "company": "Global Payments", "title": "Chief Data Officer", "category": "Technology", "dinner": "", "vip": "?", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 45, "first": "Marco", "last": "Argenti", "company": "Goldman Sachs", "title": "Chief Information Officer", "category": "Technology", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 46, "first": "Jacqueline", "last": "Arthur", "company": "Goldman Sachs", "title": "Chief Human Resources Officer", "category": "HR", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 47, "first": "Pravir", "last": "Gupta", "company": "Google", "title": "VP & GM, Google Cloud Business Platform", "category": "Other", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 48, "first": "Jonny", "last": "LeRoy", "company": "Grainger", "title": "Chief Information Officer", "category": "Technology", "dinner": "", "vip": "1", "focus": "Gavin", "notes": "", "table": null, "rawTable": ""}, {"id": 49, "first": "Luis", "last": "Paarup", "company": "Happy Robot", "title": "Chief Technology Officer", "category": "Technology", "dinner": "", "vip": "2 F", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 50, "first": "Juan", "last": "Martinez", "company": "Harvard Business Review", "title": "Senior Editor", "category": "Media", "dinner": "", "vip": "1", "focus": "B", "notes": "", "table": null, "rawTable": ""}, {"id": 51, "first": "Laura", "last": "Fuentes", "company": "Hilton", "title": "Chief Human Resources Officer", "category": "HR", "dinner": "", "vip": "1", "focus": "B", "notes": "", "table": null, "rawTable": ""}, {"id": 52, "first": "Matt", "last": "Candy", "company": "IBM", "title": "", "category": "Other", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 53, "first": "Marshall", "last": "Wright", "company": "IBM", "title": "", "category": "Other", "dinner": "", "vip": "Observing", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 54, "first": "Cameron", "last": "Leax", "company": "ICONIQ", "title": "CHRO", "category": "Other", "dinner": "Yes", "vip": "", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 55, "first": "Mike", "last": "Johnson", "company": "IDEXX", "title": "EVP & Chief Human Resources Officer", "category": "HR", "dinner": "", "vip": "1", "focus": "Gavin", "notes": "", "table": null, "rawTable": ""}, {"id": 56, "first": "Robert", "last": "Oh", "company": "International Motors", "title": "Chief Digital Information Officer", "category": "Technology", "dinner": "", "vip": "1/2", "focus": "B", "notes": "", "table": null, "rawTable": ""}, {"id": 57, "first": "Nicholas", "last": "Parrotta", "company": "Johnson & Johnson", "title": "Chief Information Officer, DePuy Synthes", "category": "Technology", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 58, "first": "Luani", "last": "Alvarado", "company": "Johnson & Johnson", "title": "Chief People Officer, DePuy Synthes", "category": "HR", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 59, "first": "Richard", "last": "Burke", "company": "Johnson & Johnson", "title": "VP, Enterprise Applications, DePuy Synthes", "category": "Other", "dinner": "", "vip": "3/4", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 60, "first": "Alanna", "last": "Klassen Jamjoum", "company": "Kearney", "title": "Partner and Global Head of Alliances", "category": "Other", "dinner": "Yes", "vip": "Observing", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 61, "first": "Susannah", "last": "Greenberg", "company": "L'Oreal", "title": "Chief Information Officer, Americas", "category": "Technology", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 62, "first": "Jennifer", "last": "Charters", "company": "Lincoln Financial", "title": "Chief Information Officer", "category": "Technology", "dinner": "", "vip": "1", "focus": "A", "notes": "", "table": null, "rawTable": ""}, {"id": 63, "first": "Yoshika", "last": "Ankin", "company": "Lowe's", "title": "Senior Vice President, Human Resources Business Partner", "category": "HR", "dinner": "", "vip": "2", "focus": "Gavin", "notes": "", "table": null, "rawTable": ""}, {"id": 64, "first": "Chandhu", "last": "Nair", "company": "Lowe's", "title": "Senior Vice President, Stores, Data, AI & Innovation", "category": "Other", "dinner": "", "vip": "2/3", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 65, "first": "Kathy", "last": "Flynn", "company": "Lumen Technologies", "title": "SVP Transformation, L&D, Solutions & AI / Chief AI Officer", "category": "Technology", "dinner": "", "vip": "2", "focus": "Gavin", "notes": "", "table": null, "rawTable": ""}, {"id": 66, "first": "Rashmi", "last": "Kumar", "company": "Medtronic", "title": "Chief Information Officer", "category": "Technology", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 67, "first": "Betty", "last": "Larson", "company": "Merck", "title": "Chief Human Resources Officer", "category": "HR", "dinner": "", "vip": "1", "focus": "A", "notes": "", "table": null, "rawTable": ""}, {"id": 68, "first": "Talvis", "last": "Love", "company": "National Grid", "title": "Group Chief Information and Digital Officer", "category": "Technology", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 69, "first": "Deepa", "last": "Soni", "company": "New York Life", "title": "Executive Vice President and Chief Information Officer", "category": "Technology", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 70, "first": "Dan", "last": "Roberts", "company": "Oulette & Associates", "title": "CEO", "category": "Facilitator", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 71, "first": "Sirsij", "last": "Peshin", "company": "Pfizer", "title": "Chief Procurement Officer", "category": "CPO", "dinner": "", "vip": "2/3", "focus": "Gavin", "notes": "", "table": null, "rawTable": ""}, {"id": 72, "first": "Trey", "last": "Whitney", "company": "Planet Labs", "title": "Chief People Officer", "category": "HR", "dinner": "", "vip": "2/3", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 73, "first": "Quinn", "last": "Scripter", "company": "Planet Labs", "title": "VP of Engineering", "category": "Other", "dinner": "", "vip": "2/3", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 74, "first": "Scott", "last": "Case", "company": "Prudential Financial", "title": "EVP, Head of Global Technology and Operations", "category": "Technology", "dinner": "", "vip": "1", "focus": "A", "notes": "", "table": null, "rawTable": ""}, {"id": 75, "first": "Kimberly", "last": "Stewart", "company": "Radical Innovators Collaborative", "title": "General Manager", "category": "Facilitator", "dinner": "", "vip": "4", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 76, "first": "Frank", "last": "Congiu", "company": "Randstad", "title": "EVP", "category": "Other", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 77, "first": "Mike", "last": "Ferris", "company": "Red Hat", "title": "Senior Vice President, Chief Operating Officer and Chief Strategy Officer", "category": "COO", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 78, "first": "Spiros", "last": "Xanthos", "company": "ResolveAI", "title": "Founder and CEO", "category": "Founder", "dinner": "", "vip": "1F", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 79, "first": "Darren", "last": "Hebert", "company": "Securian", "title": "Chief Information Officer", "category": "Technology", "dinner": "", "vip": "1/2", "focus": "B", "notes": "", "table": null, "rawTable": ""}, {"id": 80, "first": "Becca", "last": "Hagen", "company": "Securian", "title": "Head of HR", "category": "Other", "dinner": "", "vip": "?", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 81, "first": "Nick", "last": "Tzitzon", "company": "ServiceNow", "title": "Vice Chairman", "category": "Sponsors", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 82, "first": "Josh", "last": "Newman", "company": "ServiceNow", "title": "Vice President, Workforce Skills & Talent Readiness", "category": "Sponsors", "dinner": "", "vip": "3/4", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 83, "first": "Dave", "last": "Weinstein", "company": "Standard Industries", "title": "Chief Information Security Officer", "category": "Technology", "dinner": "Yes", "vip": "?", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 84, "first": "George", "last": "Fischer", "company": "T-Mobile", "title": "", "category": "Other", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 85, "first": "Mo", "last": "Katibeh", "company": "T-Mobile", "title": "", "category": "Other", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 86, "first": "Cheryl", "last": "Keeler", "company": "T-Mobile", "title": "", "category": "Other", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 87, "first": "Tarun", "last": "Sheshraj", "company": "T-Mobile", "title": "", "category": "Other", "dinner": "", "vip": "3", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 88, "first": "Rich", "last": "Hunter", "company": "T-Mobile", "title": "", "category": "Other", "dinner": "", "vip": "3", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 89, "first": "Helen", "last": "Walters", "company": "TED", "title": "Head of Media and Curation", "category": "Media", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 90, "first": "Anup", "last": "Malani", "company": "U.S. Dept. of Health and Human Services", "title": "Chief Economist", "category": "Media", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 91, "first": "Rob", "last": "LoCascio", "company": "Uare", "title": "Founder", "category": "Founder", "dinner": "", "vip": "2 F", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 92, "first": "Stephanie", "last": "Fehr", "company": "UnitedHealth Group", "title": "Chief Human Resources Officer", "category": "HR", "dinner": "", "vip": "1", "focus": "A", "notes": "", "table": null, "rawTable": ""}, {"id": 93, "first": "Christa", "last": "Emerson", "company": "UnitedHealth Group", "title": "Senior Vice President, People Team", "category": "HR", "dinner": "", "vip": "2/3", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 94, "first": "Jon", "last": "Couture", "company": "Vanguard", "title": "Chief Human Resources Officer", "category": "HR", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 95, "first": "Eric", "last": "Pulier", "company": "Vatom", "title": "Founder", "category": "Founder", "dinner": "", "vip": "2/3F", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 96, "first": "Wendy", "last": "Bounds", "company": "Wall Street Journal", "title": "SVP & Head of Content", "category": "Media", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 97, "first": "Julia", "last": "Anderson", "company": "Wella", "title": "Chief Digital Information Officer", "category": "Technology", "dinner": "", "vip": "1", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 98, "first": "Paul", "last": "Hlivko", "company": "Wellmark Blue Cross Blue Shield", "title": "EVP, Chief Information & Digital Officer", "category": "Technology", "dinner": "", "vip": "1", "focus": "?", "notes": "", "table": null, "rawTable": ""}, {"id": 99, "first": "Paul", "last": "Cao", "company": "Wells Fargo", "title": "Global Head, Enterprise Data Platform", "category": "Other", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 100, "first": "Tom", "last": "Libretto", "company": "Workhuman", "title": "President", "category": "Other", "dinner": "", "vip": "2", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 101, "first": "Kathleen", "last": "Noreau", "company": "World Economic Forum", "title": "Head of Strategic Partnerships", "category": "Media", "dinner": "Yes", "vip": "1", "focus": "A", "notes": "", "table": null, "rawTable": ""}, {"id": 102, "first": "Nick", "last": "Quigley", "company": "World Economic Forum", "title": "Partner Lead, Prof Services and Technology Industries", "category": "Media", "dinner": "Yes", "vip": "1", "focus": "A", "notes": "", "table": null, "rawTable": ""}, {"id": 103, "first": "Marc", "last": "Gilbert", "company": "Zocks", "title": "Co-Founder and CEO", "category": "CEO", "dinner": "", "vip": "2 F", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 104, "first": "Julie", "last": "Fuller", "company": "Zoetis", "title": "Chief Human Resources Officer", "category": "HR", "dinner": "", "vip": "1", "focus": "B", "notes": "", "table": null, "rawTable": ""}, {"id": 105, "first": "Joon", "last": "", "company": "Simile", "title": "", "category": "Other", "dinner": "", "vip": "", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 106, "first": "Panos", "last": "", "company": "", "title": "", "category": "Other", "dinner": "", "vip": "", "focus": "", "notes": "", "table": null, "rawTable": ""}, {"id": 107, "first": "Shannon", "last": "Spottswood", "company": "RFG", "title": "CEO", "category": "Other", "dinner": "", "vip": "", "focus": "", "notes": "", "table": null, "rawTable": ""}],
+};
+DATA.p2p = DATA.summit;   // peer-to-peer uses the same roster as the summit
+const EVENTS = {
+  dinner: {label:'Beefbar Dinner', sub:'Seating Planner', defTables:14, defCap:5},
+  summit: {label:'Summit', sub:'10 tables of 10 · grouped by role & relationship', defTables:10, defCap:10},
+  p2p: {label:'Peer-to-Peer', sub:'Tables of 4 · peers matched by role & company tier', defTables:0, defCap:4},
+};
+const CAT_COLORS = ['Technology','HR','CPO','CFO','COO','CEO','President','Sponsors','Media','Founder','Facilitator','Host','Other'];
+const STORE_BASE = 'beefbar-seating-v1';
+
+// ---- hosted cloud config (Supabase) ----
+const CLOUD_URL='https://pzbzgeviebzgripbwqgh.supabase.co';
+const CLOUD_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6YnpnZXZpZWJ6Z3JpcGJ3cWdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjY0NjIsImV4cCI6MjA5NzIwMjQ2Mn0.rBvCLGk3pWcYEvKvtxd_CMgu7lpe_QW8ixxmdR1cJNI';
+const AI_PROXY_URL=CLOUD_URL+'/functions/v1/ai-proxy';
+let sb=null; try{ if(window.supabase) sb=window.supabase.createClient(CLOUD_URL,CLOUD_KEY); }catch(e){}
+const CLOUD_ON=!!sb;
+const CLIENT_ID=(self.crypto&&crypto.randomUUID)?crypto.randomUUID():('c'+Math.random().toString(36).slice(2));
+let applyingRemote=false, cloudTimer=null;
+
+let EVENT = localStorage.getItem('beefbar-event') || 'dinner';
+let PEOPLE = DATA[EVENT];
+let state;
+
+function storeKey(){ return STORE_BASE+'::'+EVENT; }
+function save(){
+  localStorage.setItem(storeKey(), JSON.stringify(state));
+  if(sb && !applyingRemote){
+    const ev=EVENT, snap=state;
+    clearTimeout(cloudTimer);
+    cloudTimer=setTimeout(()=>{ try{ sb.from('seating_state').upsert({event:ev,state:snap,client_id:CLIENT_ID,updated_at:new Date().toISOString()}).then(()=>{},()=>{}); }catch(e){} },350);
+  }
+}
+function load(){ try{return JSON.parse(localStorage.getItem(storeKey()))}catch(e){return null} }
+function normalizeState(){ if(!state.filters) state.filters={q:'',cat:'',din:''}; if(!state.added) state.added=[]; if(!state.deleted) state.deleted=[]; if(state.nextId==null) state.nextId=10000; }
+async function cloudPull(){
+  if(!sb) return;
+  try{
+    const {data,error}=await sb.from('seating_state').select('state').eq('event',EVENT).maybeSingle();
+    if(error) return;
+    if(data&&data.state){
+      applyingRemote=true; state=data.state; normalizeState(); rebuildPeople(); applyEventChrome(); renderAll(); applyingRemote=false;
+      localStorage.setItem(storeKey(),JSON.stringify(state));
+    } else {
+      try{ sb.from('seating_state').upsert({event:EVENT,state,client_id:CLIENT_ID,updated_at:new Date().toISOString()}).then(()=>{},()=>{}); }catch(e){}
+    }
+  }catch(e){}
+}
+function cloudSubscribe(){
+  if(!sb) return;
+  sb.channel('seating_state_changes')
+    .on('postgres_changes',{event:'*',schema:'public',table:'seating_state'},payload=>{
+      const row=payload.new; if(!row||row.event!==EVENT||row.client_id===CLIENT_ID) return;
+      applyingRemote=true; state=row.state; normalizeState(); rebuildPeople(); applyEventChrome(); renderAll(); applyingRemote=false;
+      localStorage.setItem(storeKey(),JSON.stringify(state));
+    }).subscribe();
+}
+function occupants(t){ return PEOPLE.filter(p=>state.assign[p.id]===t); }
+function byId(id){ return PEOPLE.find(p=>p.id===id); }
+
+// ---------- relationship / role scoring ----------
+function vipScore(p){            // tier 1 = most important
+  const m=(p.vip||'').match(/[1-4]/); if(!m) return 0;
+  return {1:4,2:3,3:2,4:1}[m[0]] || 0;
+}
+function focusKey(p){            // KF Focused Relationship cluster
+  const f=(p.focus||'').trim().toLowerCase();
+  if(f.startsWith('a')) return 'A';
+  if(f.startsWith('b')) return 'B';
+  if(f.startsWith('gavin')) return 'Gavin';
+  return '';
+}
+const ROLE_BUCKET = {
+  Technology:'Technology', HR:'HR', CPO:'HR',
+  CEO:'Exec', COO:'Exec', CFO:'Exec', President:'Exec',
+  Founder:'Founder', Media:'Media',
+  Sponsors:'Partners', Facilitator:'Partners', Host:'Partners', Other:'Partners'
+};
+const ROLE_ORDER = ['Technology','HR','Exec','Founder','Media','Partners'];
+function roleBucket(p){ return ROLE_BUCKET[p.category] || 'Partners'; }
+
+// Group everyone into `nTables` tables of `perTable`, clustered by role,
+// keeping KF focus-relationships together and seating higher VIP tiers first.
+function autoArrange(nTables, perTable){
+  const attendees = PEOPLE.filter(p=>(p.dinner||'')!=='No');     // skip explicit "No"
+  attendees.sort((a,b)=>{
+    const ra=ROLE_ORDER.indexOf(roleBucket(a)), rb=ROLE_ORDER.indexOf(roleBucket(b));
+    if(ra!==rb) return ra-rb;
+    const fa=focusKey(a), fb=focusKey(b);
+    if(fa!==fb) return (fa||'zz').localeCompare(fb||'zz');
+    if(vipScore(b)!==vipScore(a)) return vipScore(b)-vipScore(a);
+    return (a.company||'').localeCompare(b.company||'');
+  });
+  state.assign={}; state.tables=[]; state.caps={};
+  for(let t=1;t<=nTables;t++){ state.tables.push(t); state.caps[t]=perTable; }
+  PEOPLE.forEach(p=>state.assign[p.id]=null);     // everyone starts unassigned
+  attendees.forEach((p,i)=>{
+    const t = Math.floor(i/perTable)+1;
+    state.assign[p.id] = t<=nTables ? t : null;   // overflow stays in pool
+  });
+  save();
+}
+
+// PEOPLE = base roster (minus deleted) + custom added guests, for the current event
+function rebuildPeople(){
+  const del=new Set(state.deleted||[]);
+  PEOPLE = [...DATA[EVENT].filter(p=>!del.has(p.id)), ...(state.added||[])];
+}
+function deletePerson(id){
+  delete state.assign[id];
+  if((state.added||[]).some(p=>p.id===id)) state.added=state.added.filter(p=>p.id!==id);
+  else state.deleted=[...(state.deleted||[]),id];
+  rebuildPeople(); save(); renderAll();
+}
+function addPerson(){
+  const v=id=>document.getElementById(id).value.trim();
+  const first=v('ap-first'), last=v('ap-last');
+  if(!first && !last){ document.getElementById('ap-first').focus(); return; }
+  const p={ id:state.nextId++, first, last, company:v('ap-company'), title:v('ap-title'),
+    category:document.getElementById('ap-cat').value||'Other',
+    dinner:'', vip:v('ap-vip'), focus:'', notes:'', table:null, rawTable:'' };
+  state.added=[...(state.added||[]), p];
+  state.assign[p.id]=null;
+  rebuildPeople(); save(); renderAll();
+  ['ap-first','ap-last','ap-company','ap-title','ap-vip'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('addform').classList.remove('open');
+}
+
+// Peer-to-peer: small tables of peers — same function, matched by company tier.
+// VIP tier is used as the company-stature proxy (tier 1 = biggest / most senior),
+// so "big CIOs sit with big CIOs", down the line.
+const P2P_BUCKET = {
+  CEO:'Chief Executives', President:'Chief Executives', COO:'Chief Executives',
+  CFO:'Finance Chiefs',
+  Technology:'Technology (CIO/CTO)',
+  HR:'People Chiefs (CHRO/CPO)', CPO:'People Chiefs (CHRO/CPO)',
+  Founder:'Founders & CEOs', Media:'Media', Sponsors:'Partners',
+  Facilitator:'Partners', Host:'Partners', Other:'Partners'
+};
+const P2P_ORDER = ['Chief Executives','Finance Chiefs','Technology (CIO/CTO)',
+  'People Chiefs (CHRO/CPO)','Founders & CEOs','Media','Partners'];
+function p2pBucket(p){ return P2P_BUCKET[p.category] || 'Partners'; }
+
+function autoArrangeP2P(perTable){
+  const attendees = PEOPLE.filter(p=>(p.dinner||'')!=='No');
+  attendees.sort((a,b)=>{
+    const ra=P2P_ORDER.indexOf(p2pBucket(a)), rb=P2P_ORDER.indexOf(p2pBucket(b));
+    if(ra!==rb) return ra-rb;                          // peers of the same function together
+    if(vipScore(b)!==vipScore(a)) return vipScore(b)-vipScore(a); // big companies (tier 1) first
+    return (a.company||'').localeCompare(b.company||'');
+  });
+  const nTables = Math.max(1, Math.ceil(attendees.length/perTable));
+  state.assign={}; state.tables=[]; state.caps={};
+  for(let t=1;t<=nTables;t++){ state.tables.push(t); state.caps[t]=perTable; }
+  PEOPLE.forEach(p=>state.assign[p.id]=null);
+  attendees.forEach((p,i)=>{ state.assign[p.id]=Math.floor(i/perTable)+1; });
+  save();
+}
+
+// ---------- per-event state init ----------
+function initState(){
+  PEOPLE = DATA[EVENT];
+  const ev = EVENTS[EVENT];
+  state = load();
+  if(!state){
+    state = {assign:{}, caps:{}, tables:[], filters:{q:'',cat:'',din:''}, added:[], deleted:[], nextId:10000};
+    if(EVENT==='summit'){
+      autoArrange(ev.defTables, ev.defCap);       // auto-group summit on first load
+    } else if(EVENT==='p2p'){
+      autoArrangeP2P(ev.defCap);                  // peer tables of 4 on first load
+    } else {
+      state.assign = Object.fromEntries(PEOPLE.map(p=>[p.id, p.table]));
+      const used=new Set(Object.values(state.assign).filter(v=>v!=null));
+      state.tables=[...used].sort((a,b)=>a-b);
+      if(!state.tables.length) state.tables=Array.from({length:ev.defTables},(_,i)=>i+1);
+      state.tables.forEach(t=>{ if(state.caps[t]==null) state.caps[t]=(occupants(t).length>5?6:5); });
+    }
+    save();
+  }
+  if(!state.filters) state.filters={q:'',cat:'',din:''};
+  if(!state.added) state.added=[];
+  if(!state.deleted) state.deleted=[];
+  if(state.nextId==null) state.nextId=10000;
+  rebuildPeople();
+}
+initState();
+
+// ---------- rendering ----------
+const board = document.getElementById('board');
+const poollist = document.getElementById('poollist');
+
+function personCard(p, inTable){
+  const c = `var(--c-${p.category||'Other'})`;
+  const din = (p.dinner||'').replace(/\s/g,'')||'—';
+  const dinLabel = p.dinner||'—';
+  const vipNum = (p.vip||'').trim();
+  const showVip = /^[123]/.test(vipNum); // VIP tiers 1-3
+  const el = document.createElement('div');
+  el.className='person';
+  el.draggable=true;
+  el.dataset.id=p.id;
+  el.style.borderLeftColor=c;
+  el.innerHTML = `
+    <span class="catdot" style="background:${c}"></span>
+    <div class="body">
+      <div class="nm">${esc(p.first)} ${esc(p.last)}</div>
+      <div class="co">${esc(p.company)||'—'}</div>
+      <div class="ti">${esc(p.title)||''}</div>
+    </div>
+    <div class="badges">
+      ${showVip?`<span class="badge vip" title="VIP tier ${esc(vipNum[0])}">★${esc(vipNum[0])}</span>`:''}
+      <span class="badge din-${din}" title="Status: ${esc(dinLabel)}">${esc(shortDin(p.dinner))}</span>
+    </div>
+    ${p.focus?`<span class="focus">↪ ${esc(p.focus.slice(0,18))}</span>`:''}
+    <button class="del" title="Remove guest" draggable="false">×</button>`;
+  el.addEventListener('dragstart',e=>{
+    e.dataTransfer.setData('text/plain',p.id);
+    e.dataTransfer.effectAllowed='move';
+    el.classList.add('dragging');
+  });
+  el.addEventListener('dragend',()=>el.classList.remove('dragging'));
+  const del=el.querySelector('.del');
+  del.addEventListener('mousedown',e=>e.stopPropagation());
+  del.addEventListener('click',e=>{ e.stopPropagation(); deletePerson(p.id); });
+  attachTip(el,p);
+  return el;
+}
+function shortDin(d){
+  if(!d) return '?';
+  if(d==='Yes') return '✓';
+  if(d==='No') return '✗';
+  if(d==='No response') return 'NR';
+  if(d==='Unsure') return '?';
+  if(d==='Cocktails') return '🍸';
+  return d;
+}
+
+function renderBoard(){
+  board.innerHTML='';
+  state.tables.forEach(t=>{
+    const occ = occupants(t);
+    const cap = state.caps[t];
+    const slots = Math.max(cap, occ.length);     // never hide a guest
+    const node = document.createElement('div');
+    node.className='tnode'+(occ.length>cap?' over-cap':'');
+    node.dataset.table=t;
+    node.innerHTML=`
+      <div class="tn-head">
+        <span class="num">Table ${t}</span>
+        <span class="seatctl">
+          <button data-act="dec" title="Remove a chair">−</button>
+          <span class="cap">${occ.length}/${cap}</span>
+          <button data-act="inc" title="Add a chair">+</button>
+        </span>
+        <button class="tdel" data-act="del" title="Delete table (guests return to pool)">🗑</button>
+      </div>
+      <div class="seats"></div>`;
+    const seats=node.querySelector('.seats');
+    for(let i=0;i<slots;i++){
+      if(occ[i]){
+        seats.appendChild(personCard(occ[i], true));
+      } else {
+        const e=document.createElement('div'); e.className='seat-empty'; e.textContent='Empty seat';
+        seats.appendChild(e);
+      }
+    }
+    if(filterActive()){
+      seats.querySelectorAll('.person').forEach(el=>{
+        const m=matchesFilter(byId(+el.dataset.id));
+        el.classList.toggle('hit', m); el.classList.toggle('dim', !m);
+      });
+    }
+    node.querySelector('[data-act="inc"]').onclick=()=>{state.caps[t]=Math.min(12,cap+1);save();renderAll();};
+    node.querySelector('[data-act="dec"]').onclick=()=>{state.caps[t]=Math.max(1,cap-1);save();renderAll();};
+    node.querySelector('[data-act="del"]').onclick=()=>{
+      if(occ.length && !confirm(`Delete Table ${t}? Its ${occ.length} guest${occ.length===1?'':'s'} will go back to the pool.`)) return;
+      occ.forEach(p=>state.assign[p.id]=null);
+      state.tables=state.tables.filter(x=>x!==t);
+      delete state.caps[t];
+      save(); renderAll();
+    };
+    wireDrop(node, t);
+    board.appendChild(node);
+  });
+}
+
+function filterActive(){ const f=state.filters; return !!((f.q&&f.q.trim())||f.cat||f.din); }
+function matchesFilter(p){
+  if(!p) return false;
+  const {q,cat,din}=state.filters; const ql=(q||'').trim().toLowerCase();
+  if(cat && p.category!==cat) return false;
+  if(din && p.dinner!==din) return false;
+  if(ql){
+    const hay=(p.first+' '+p.last+' '+p.company+' '+p.title+' '+p.category).toLowerCase();
+    if(!hay.includes(ql)) return false;
+  }
+  return true;
+}
+function renderPool(){
+  const list = PEOPLE.filter(p=>state.assign[p.id]==null && matchesFilter(p))
+    .sort((a,b)=> (a.last||'').localeCompare(b.last||''));
+  // seated-guest search count
+  const info=document.getElementById('search-info');
+  if(filterActive()){
+    const seated=PEOPLE.filter(p=>state.assign[p.id]!=null && matchesFilter(p)).length;
+    info.textContent = seated ? `${seated} seated guest${seated===1?'':'s'} match — highlighted on the chart` : 'No seated guests match this search';
+  } else { info.textContent=''; }
+  poollist.innerHTML='';
+  if(!list.length){
+    poollist.innerHTML='<div id="poollist-empty">No matching guests in the pool.</div>';
+  } else {
+    list.forEach(p=>poollist.appendChild(personCard(p,false)));
+  }
+  document.getElementById('pool-count').textContent=list.length;
+}
+
+function renderStats(){
+  const seated = Object.values(state.assign).filter(v=>v!=null).length;
+  document.getElementById('st-seated').textContent=seated;
+  document.getElementById('st-pool').textContent=PEOPLE.length-seated;
+  document.getElementById('st-tables').textContent=state.tables.filter(t=>occupants(t).length).length;
+}
+function renderAll(){ renderBoard(); renderPool(); renderStats(); }
+
+// ---------- drag/drop targets ----------
+function wireDrop(el, table){
+  el.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';el.classList.add('drag-over');});
+  el.addEventListener('dragleave',e=>{ if(!el.contains(e.relatedTarget)) el.classList.remove('drag-over');});
+  el.addEventListener('drop',e=>{
+    e.preventDefault(); el.classList.remove('drag-over');
+    const id=+e.dataTransfer.getData('text/plain');
+    if(!id) return;
+    state.assign[id]= table; // table===null means pool
+    save(); renderAll();
+  });
+}
+
+// pool is a drop target that unassigns
+const pool=document.getElementById('pool');
+wireDrop(pool, null);
+
+// ---------- tooltip ----------
+const tip=document.getElementById('tip');
+function attachTip(el,p){
+  el.addEventListener('mouseenter',()=>{
+    const lines=[`${p.first} ${p.last}`,
+      p.title?p.title:'',
+      p.company?'· '+p.company:'',
+      `Category: ${p.category}`,
+      p.vip?`VIP: ${p.vip}`:'',
+      `Status: ${p.dinner||'—'}`,
+      p.focus?`Focus: ${p.focus}`:'',
+      p.notes?`\nNote: ${p.notes}`:''].filter(Boolean);
+    tip.textContent=lines.join('\n');
+    tip.style.display='block';
+  });
+  el.addEventListener('mousemove',e=>{
+    const pad=14; let x=e.clientX+pad, y=e.clientY+pad;
+    const r=tip.getBoundingClientRect();
+    if(x+r.width>innerWidth) x=e.clientX-r.width-pad;
+    if(y+r.height>innerHeight) y=e.clientY-r.height-pad;
+    tip.style.left=x+'px'; tip.style.top=y+'px';
+  });
+  el.addEventListener('mouseleave',()=>tip.style.display='none');
+}
+
+// ---------- controls ----------
+const fcat=document.getElementById('f-cat');
+function populateCatFilter(){
+  fcat.innerHTML='<option value="">All categories</option>';
+  [...new Set(PEOPLE.map(p=>p.category))].sort().forEach(c=>{
+    const o=document.createElement('option');o.value=c;o.textContent=c;fcat.appendChild(o);
+  });
+  fcat.value=state.filters.cat||'';
+}
+document.getElementById('search').addEventListener('input',e=>{state.filters.q=e.target.value;renderPool();renderBoard();});
+fcat.addEventListener('change',e=>{state.filters.cat=e.target.value;renderPool();renderBoard();});
+document.getElementById('f-din').addEventListener('change',e=>{state.filters.din=e.target.value;renderPool();renderBoard();});
+
+// add-person form
+(function(){const s=document.getElementById('ap-cat');
+  CAT_COLORS.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;s.appendChild(o);});
+  s.value='Technology';})();
+document.getElementById('btn-addperson').onclick=()=>{
+  const f=document.getElementById('addform'); f.classList.toggle('open');
+  if(f.classList.contains('open')) document.getElementById('ap-first').focus();
+};
+document.getElementById('ap-cancel').onclick=()=>document.getElementById('addform').classList.remove('open');
+document.getElementById('ap-save').onclick=addPerson;
+['ap-first','ap-last','ap-company','ap-title','ap-vip'].forEach(id=>
+  document.getElementById(id).addEventListener('keydown',e=>{ if(e.key==='Enter') addPerson(); }));
+
+document.getElementById('btn-add').onclick=()=>{
+  const next=(Math.max(0,...state.tables)+1);
+  state.tables.push(next); state.caps[next]=EVENTS[EVENT].defCap; save(); renderAll();
+  board.lastChild.scrollIntoView({behavior:'smooth',block:'center'});
+};
+document.getElementById('btn-reset').onclick=()=>{
+  if(!confirm('Reset '+EVENTS[EVENT].label+' seating to its default layout?')) return;
+  localStorage.removeItem(storeKey()); initState(); applyEventChrome(); renderAll();
+};
+document.getElementById('btn-auto').onclick=()=>{
+  const ev=EVENTS[EVENT];
+  const f=state.filters;
+  if(EVENT==='p2p'){
+    if(!confirm('Auto-arrange into tables of '+ev.defCap+', matching peers by role and company tier (big with big)?\n\nThis replaces the current layout (you can still drag to adjust afterward).')) return;
+    autoArrangeP2P(ev.defCap);
+  } else {
+    if(!confirm('Auto-arrange into '+ev.defTables+' tables of '+ev.defCap+
+      ', grouped by role and VIP/relationship score?\n\nThis replaces the current layout (you can still drag to adjust afterward).')) return;
+    autoArrange(ev.defTables, ev.defCap);
+  }
+  state.filters=f; save();
+  renderAll();
+};
+document.getElementById('btn-export').onclick=()=>{
+  const rows=[['Table','First','Last','Company','Title','Category','VIP','Status']];
+  state.tables.forEach(t=>occupants(t).forEach(p=>
+    rows.push([t,p.first,p.last,p.company,p.title,p.category,p.vip,p.dinner])));
+  PEOPLE.filter(p=>state.assign[p.id]==null).forEach(p=>
+    rows.push(['(unassigned)',p.first,p.last,p.company,p.title,p.category,p.vip,p.dinner]));
+  const csv=rows.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='beefbar-'+EVENT+'-seating.csv'; a.click();
+};
+
+// ---------- event tabs ----------
+document.querySelectorAll('.tabs button').forEach(b=>{
+  b.onclick=()=>{ if(b.dataset.ev!==EVENT) switchEvent(b.dataset.ev); };
+});
+function switchEvent(ev){
+  EVENT=ev; localStorage.setItem('beefbar-event',ev);
+  PEOPLE=DATA[ev];
+  initState(); applyEventChrome(); renderAll(); cloudPull();
+}
+function applyEventChrome(){
+  const ev=EVENTS[EVENT];
+  document.getElementById('title').firstChild.textContent=ev.label+' ';
+  document.getElementById('subtitle').textContent=ev.sub;
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.ev===EVENT));
+  document.getElementById('search').value=state.filters.q||'';
+  document.getElementById('f-din').value=state.filters.din||'';
+  populateCatFilter();
+}
+
+// ---------- AI assistant ----------
+const AI_TOOL = {
+  name:'apply_seating_changes',
+  description:'Apply the requested seating changes to the chart.',
+  input_schema:{
+    type:'object',
+    properties:{
+      summary:{type:'string',description:'One short sentence describing what you changed.'},
+      assignments:{type:'array',description:'Only the guests whose table changed. Omit unchanged guests.',
+        items:{type:'object',properties:{
+          id:{type:'integer',description:'Guest id (the #number).'},
+          table:{type:['integer','null'],description:'Table number to seat them at, or null to move to the unassigned pool.'}
+        },required:['id','table']}},
+      newGuests:{type:'array',description:'Brand-new people to create and seat. Use this whenever the user asks to ADD a guest who is not already in the list.',
+        items:{type:'object',properties:{
+          first:{type:'string'},last:{type:'string'},
+          company:{type:'string'},title:{type:'string'},
+          category:{type:'string',description:'One of: Technology, HR, CPO, CFO, COO, CEO, President, Sponsors, Media, Founder, Facilitator, Host, Other.'},
+          vip:{type:'string',description:'VIP tier like "1", "2", or "" if unknown.'},
+          table:{type:['integer','null'],description:'Table to seat the new guest at, or null for the pool.'}
+        },required:['first']}},
+      capacities:{type:'array',description:'Optional table capacity changes.',
+        items:{type:'object',properties:{table:{type:'integer'},seats:{type:'integer'}},required:['table','seats']}},
+      addTables:{type:'integer',description:'Optional number of new empty tables to add.'}
+    },
+    required:['summary','assignments']
+  }
+};
+let aiUndo=null;
+const AI_KEY_STORE='anthropic-key', AI_MODEL_STORE='anthropic-model';
+function aiEl(id){return document.getElementById(id);}
+function aiSetStatus(msg,cls){const s=aiEl('ai-status');s.className='ai-status'+(cls?' '+cls:'');s.innerHTML=msg;}
+
+function buildAIMessages(instruction){
+  const tablesInfo=state.tables.map(t=>`Table ${t}: capacity ${state.caps[t]}, ${occupants(t).length} seated`).join('\n');
+  const roster=PEOPLE.map(p=>`#${p.id} ${p.first} ${p.last} | ${p.company||'-'} | role:${p.category} | VIP:${p.vip||'-'} | focus:${p.focus||'-'} | table:${state.assign[p.id]??'POOL'}`).join('\n');
+  const sys=`You are a seating-chart assistant for the "${EVENTS[EVENT].label}" event. You change the seating by calling the apply_seating_changes tool.
+
+VIP tier 1 is the most important guest; higher numbers are less senior. "focus" marks a relationship cluster (A/B/Gavin) that generally should sit together. Dinner tables hold ~5-6; Summit tables hold ~10.
+
+TABLES:
+${tablesInfo}
+
+GUESTS (id | name | company | role | VIP tier | focus | current table):
+${roster}
+
+Rules:
+- Reference guests only by their numeric id.
+- In "assignments", include ONLY guests whose table changes; set table to a number to seat them or null to move them to the pool.
+- To ADD a brand-new person who is not in the guest list, use "newGuests" (not "assignments") with their details and the table to seat them at.
+- Keep tables within a sensible size unless the user says otherwise; you may adjust capacities or add tables when needed.
+- Follow the user's instruction precisely; if ambiguous, choose the most reasonable interpretation.
+Always call apply_seating_changes with a concise summary.`;
+  return {system:sys, messages:[{role:'user',content:instruction}]};
+}
+
+async function runAI(){
+  const instruction=aiEl('ai-prompt').value.trim();
+  if(!instruction){ aiSetStatus('Type an instruction.','err'); aiEl('ai-prompt').focus(); return; }
+  const model=aiEl('ai-model').value;
+  localStorage.setItem(AI_MODEL_STORE,model);
+  aiEl('ai-run').disabled=true;
+  aiSetStatus('<span class="spin"></span>Thinking…');
+  const {system,messages}=buildAIMessages(instruction);
+  try{
+    const res=await fetch(AI_PROXY_URL,{
+      method:'POST',
+      headers:{'content-type':'application/json','apikey':CLOUD_KEY,'authorization':'Bearer '+CLOUD_KEY},
+      body:JSON.stringify({model,max_tokens:8192,system,tools:[AI_TOOL],
+        tool_choice:{type:'tool',name:'apply_seating_changes'},messages})
+    });
+    const data=await res.json();
+    if(!res.ok){ aiSetStatus('AI error: '+esc((data.error&&data.error.message)||res.status),'err'); return; }
+    const tu=(data.content||[]).find(b=>b.type==='tool_use');
+    if(!tu){ aiSetStatus('No changes were returned.','err'); return; }
+    const r=applyAIChanges(tu.input);
+    const parts=[]; if(r.moved) parts.push(`${r.moved} moved`); if(r.added) parts.push(`${r.added} added`);
+    aiSetStatus('✓ '+esc(tu.input.summary||'Done')+(parts.length?`  ( ${parts.join(', ')} )`:''),'ok');
+    aiEl('ai-undo').disabled=false;
+  }catch(e){
+    aiSetStatus('Request failed: '+esc(e.message)+'\n(If this is a network/CORS error, check the key and your connection.)','err');
+  }finally{
+    aiEl('ai-run').disabled=false;
+  }
+}
+
+function applyAIChanges(input){
+  aiUndo=JSON.parse(JSON.stringify(state));
+  const ensureTable=t=>{ if(t!=null && !state.tables.includes(t)){ state.tables.push(t); if(state.caps[t]==null) state.caps[t]=EVENTS[EVENT].defCap; } };
+  (input.capacities||[]).forEach(c=>{ ensureTable(c.table); state.caps[c.table]=Math.max(1,c.seats); });
+  for(let i=0;i<(input.addTables||0);i++){ const nt=Math.max(0,...state.tables)+1; state.tables.push(nt); state.caps[nt]=EVENTS[EVENT].defCap; }
+  let moved=0, added=0;
+  (input.newGuests||[]).forEach(g=>{
+    const p={id:state.nextId++, first:g.first||'', last:g.last||'', company:g.company||'', title:g.title||'',
+      category:g.category||'Other', dinner:'', vip:g.vip||'', focus:'', notes:'', table:null, rawTable:''};
+    state.added=[...(state.added||[]), p];
+    const t=(g.table===undefined?null:g.table); ensureTable(t); state.assign[p.id]=t; added++;
+  });
+  (input.assignments||[]).forEach(a=>{ if(byId(a.id)){ ensureTable(a.table); state.assign[a.id]=a.table; moved++; } });
+  rebuildPeople();
+  state.tables.sort((a,b)=>a-b);
+  save(); renderAll();
+  return {moved, added};
+}
+
+(function wireAI(){
+  const overlay=aiEl('ai-overlay');
+  aiEl('btn-ai').onclick=()=>{
+    overlay.classList.add('open');
+    const k=localStorage.getItem(AI_KEY_STORE); if(k) aiEl('ai-key').value=k;
+    aiEl('ai-model').value=localStorage.getItem(AI_MODEL_STORE)||'claude-opus-4-8';
+    aiEl('ai-key-note').textContent=k?'A key is saved in this browser.':'';
+    aiEl('ai-prompt').focus();
+  };
+  aiEl('ai-close').onclick=()=>overlay.classList.remove('open');
+  overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.classList.remove('open'); });
+  aiEl('ai-key-save').onclick=()=>{ localStorage.setItem(AI_KEY_STORE,aiEl('ai-key').value.trim()); aiEl('ai-key-note').textContent='Saved.'; };
+  if(CLOUD_ON){
+    aiEl('ai-key-wrap').style.display='none';
+    aiEl('ai-foot-note').textContent='AI is powered by the host — no key needed (up to 40 requests/hour per visitor). The current seating & guest list for this event are sent to Anthropic to compute changes.';
+  }
+  aiEl('ai-run').onclick=runAI;
+  aiEl('ai-undo').onclick=()=>{ if(aiUndo){ state=aiUndo; aiUndo=null; rebuildPeople(); save(); renderAll(); applyEventChrome(); aiSetStatus('Reverted the last AI change.',''); aiEl('ai-undo').disabled=true; } };
+  const examples=['Balance VIP tier-1 guests evenly across all tables',
+    'Put all HR / Chief People Officers together',
+    'Spread the hosts and facilitators one per table',
+    'Move everyone from the pool onto the emptiest tables'];
+  const chips=aiEl('ai-chips');
+  examples.forEach(x=>{ const b=document.createElement('button'); b.textContent=x; b.onclick=()=>{aiEl('ai-prompt').value=x;aiEl('ai-prompt').focus();}; chips.appendChild(b); });
+})();
+
+// legend (static — covers every category color)
+const legend=document.getElementById('legend');
+CAT_COLORS.forEach(c=>{
+  const s=document.createElement('span');
+  s.innerHTML=`<i style="background:var(--c-${c})"></i>${c}`;
+  legend.appendChild(s);
+});
+
+function esc(s){return String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+
+applyEventChrome();
+renderAll();
+cloudSubscribe();
+cloudPull();
+</script>
+</body>
+</html>
