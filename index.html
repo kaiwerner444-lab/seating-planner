@@ -177,6 +177,30 @@
   .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--accent);
     border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:5px}
   @keyframes sp{to{transform:rotate(360deg)}}
+  /* ---------- mobile / responsive ---------- */
+  @media (max-width:860px){
+    body{height:auto;min-height:100vh;overflow:auto}
+    header{padding:10px 12px;gap:9px}
+    header h1{font-size:15px}
+    header h1 .sub{display:none}
+    .tabs{order:-1}
+    .stat{padding:0 8px;border-left:none}
+    .stat b{font-size:14px}
+    .btn{padding:8px 11px}
+    main{flex-direction:column;min-height:0}
+    #board{flex:none;padding:12px;grid-template-columns:1fr;gap:12px;overflow:visible}
+    #pool{width:auto;flex:none;border-left:none;border-top:2px solid var(--line);min-height:50vh}
+    #poollist{max-height:none}
+    .modal{width:96vw !important;max-width:96vw}
+    .ai-row{flex-wrap:wrap}
+    .legend{position:sticky;bottom:0;background:var(--panel)}
+  }
+  @media (pointer:coarse){
+    .person .del{opacity:1}          /* show delete without hover on touch */
+    .seatctl button,.tdel{width:30px;height:30px}  /* bigger tap targets */
+  }
+  /* tap-to-move menu */
+  #move-tables .btn{font-size:12.5px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -282,6 +306,17 @@
       </div>
       <div class="ai-status" id="ai-status"></div>
       <div class="ai-note" id="ai-foot-note">The current seating &amp; full guest list for this event are sent to Anthropic to compute the changes.</div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="move-overlay">
+  <div class="modal" style="width:420px">
+    <div class="mhead"><h3 id="move-title">Move guest</h3><button class="x" id="move-close">×</button></div>
+    <div class="mbody">
+      <button class="btn" id="move-edit" style="width:100%">✎ Edit info</button>
+      <label style="margin-top:4px">Move to</label>
+      <div id="move-tables" style="display:flex;flex-wrap:wrap;gap:7px;max-height:50vh;overflow:auto"></div>
     </div>
   </div>
 </div>
@@ -445,6 +480,28 @@ function addPerson(){
   document.getElementById('addform').classList.remove('open');
 }
 
+// ---------- tap-to-move menu (touch devices) ----------
+const COARSE = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+let moveId=null;
+function openMoveMenu(id){
+  const p=byId(id); if(!p) return; moveId=id;
+  document.getElementById('move-title').textContent='Move '+((p.first||'')+' '+(p.last||'')).trim();
+  const box=document.getElementById('move-tables'); box.innerHTML='';
+  const cur=state.assign[id];
+  const mk=(label,t)=>{ const b=document.createElement('button'); b.className='btn'+(t===cur?' primary':''); b.textContent=label;
+    b.onclick=()=>{ state.assign[id]=t; save(); renderAll(); closeMove(); }; return b; };
+  box.appendChild(mk('Pool (unassign)', null));
+  state.tables.forEach(t=>box.appendChild(mk('Table '+t+' · '+occupants(t).length, t)));
+  document.getElementById('move-overlay').classList.add('open');
+}
+function closeMove(){ document.getElementById('move-overlay').classList.remove('open'); moveId=null; }
+(function wireMove(){
+  const ov=document.getElementById('move-overlay');
+  document.getElementById('move-close').onclick=closeMove;
+  ov.addEventListener('click',e=>{ if(e.target===ov) closeMove(); });
+  document.getElementById('move-edit').onclick=()=>{ const id=moveId; closeMove(); if(id!=null) openEditPerson(id); };
+})();
+
 // ---------- edit a guest (right-click a card) ----------
 let editingId=null;
 function openEditPerson(id){
@@ -575,6 +632,7 @@ function personCard(p, inTable){
   });
   el.addEventListener('dragend',()=>el.classList.remove('dragging'));
   el.addEventListener('contextmenu',e=>{ e.preventDefault(); openEditPerson(p.id); });
+  el.addEventListener('click',e=>{ if(e.target.closest('.del')) return; if(COARSE){ e.preventDefault(); openMoveMenu(p.id); } });
   const del=el.querySelector('.del');
   del.addEventListener('mousedown',e=>e.stopPropagation());
   del.addEventListener('click',e=>{ e.stopPropagation(); deletePerson(p.id); });
