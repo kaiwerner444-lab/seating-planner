@@ -94,6 +94,10 @@
   .person .focus{position:absolute;right:6px;bottom:5px;font-size:9px;color:var(--muted2)}
   .person.dim{opacity:.3}
   .person.hit{border-color:var(--accent);box-shadow:0 0 0 2px rgba(110,168,254,.4)}
+  .person.dupco{box-shadow:0 0 0 1.5px var(--warn)}
+  .person .dupflag{position:absolute;right:6px;bottom:5px;font-size:9px;color:var(--warn);font-weight:700}
+  .tn-warn{margin-left:8px;font-size:10.5px;color:var(--warn);background:#2a2410;border:1px solid #4d3f1f;
+    border-radius:20px;padding:2px 8px;cursor:default}
   .search-info{font-size:11.5px;color:var(--accent);margin-top:8px;min-height:0}
   .person .del{position:absolute;top:50%;right:6px;transform:translateY(-50%);width:20px;height:20px;
     border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--muted);
@@ -282,6 +286,30 @@
   </div>
 </div>
 
+<div class="overlay" id="edit-overlay">
+  <div class="modal" style="width:480px">
+    <div class="mhead"><h3>✎ Edit guest</h3><button class="x" id="edit-close">×</button></div>
+    <div class="mbody">
+      <div class="ai-row">
+        <div><label>First name</label><input id="e-first"></div>
+        <div><label>Last name</label><input id="e-last"></div>
+      </div>
+      <div><label>Company</label><input id="e-company"></div>
+      <div><label>Title / role</label><input id="e-title"></div>
+      <div class="ai-row">
+        <div><label>Category</label><select id="e-cat"></select></div>
+        <div><label>VIP tier</label><input id="e-vip" placeholder="e.g. 1"></div>
+      </div>
+      <div class="ai-actions">
+        <button class="btn primary" id="e-save">Save</button>
+        <button class="btn" id="edit-cancel">Cancel</button>
+        <span class="grow"></span>
+        <button class="btn" id="e-delete" style="border-color:#5a2e2e;color:var(--bad)">Delete guest</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="tip" id="tip"></div>
 
 <script>
@@ -321,7 +349,7 @@ function save(){
   }
 }
 function load(){ try{return JSON.parse(localStorage.getItem(storeKey()))}catch(e){return null} }
-function normalizeState(){ if(!state.filters) state.filters={q:'',cat:'',din:''}; if(!state.added) state.added=[]; if(!state.deleted) state.deleted=[]; if(state.nextId==null) state.nextId=10000; }
+function normalizeState(){ if(!state.filters) state.filters={q:'',cat:'',din:''}; if(!state.added) state.added=[]; if(!state.deleted) state.deleted=[]; if(!state.edits) state.edits={}; if(state.nextId==null) state.nextId=10000; }
 async function cloudPull(){
   if(!sb) return;
   try{
@@ -393,7 +421,9 @@ function autoArrange(nTables, perTable){
 // PEOPLE = base roster (minus deleted) + custom added guests, for the current event
 function rebuildPeople(){
   const del=new Set(state.deleted||[]);
-  PEOPLE = [...DATA[EVENT].filter(p=>!del.has(p.id)), ...(state.added||[])];
+  const edits=state.edits||{};
+  PEOPLE = [...DATA[EVENT].filter(p=>!del.has(p.id)), ...(state.added||[])]
+    .map(p=> edits[p.id] ? {...p, ...edits[p.id]} : p);
 }
 function deletePerson(id){
   delete state.assign[id];
@@ -414,6 +444,41 @@ function addPerson(){
   ['ap-first','ap-last','ap-company','ap-title','ap-vip'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('addform').classList.remove('open');
 }
+
+// ---------- edit a guest (right-click a card) ----------
+let editingId=null;
+function openEditPerson(id){
+  const p=byId(id); if(!p) return;
+  editingId=id;
+  const cs=document.getElementById('e-cat');
+  if(!cs.options.length){ CAT_COLORS.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;cs.appendChild(o);}); }
+  document.getElementById('e-first').value=p.first||'';
+  document.getElementById('e-last').value=p.last||'';
+  document.getElementById('e-company').value=p.company||'';
+  document.getElementById('e-title').value=p.title||'';
+  cs.value=CAT_COLORS.includes(p.category)?p.category:'Other';
+  document.getElementById('e-vip').value=p.vip||'';
+  document.getElementById('edit-overlay').classList.add('open');
+  document.getElementById('e-first').focus();
+}
+function closeEdit(){ document.getElementById('edit-overlay').classList.remove('open'); editingId=null; }
+function saveEditPerson(){
+  if(editingId==null) return;
+  const v=id=>document.getElementById(id).value.trim();
+  const fields={first:v('e-first'),last:v('e-last'),company:v('e-company'),title:v('e-title'),
+    category:document.getElementById('e-cat').value||'Other',vip:v('e-vip')};
+  state.edits={...(state.edits||{}),[editingId]:{...((state.edits||{})[editingId]||{}),...fields}};
+  rebuildPeople(); save(); renderAll();
+  closeEdit();
+}
+(function wireEdit(){
+  const ov=document.getElementById('edit-overlay');
+  document.getElementById('edit-close').onclick=closeEdit;
+  document.getElementById('edit-cancel').onclick=closeEdit;
+  ov.addEventListener('click',e=>{ if(e.target===ov) closeEdit(); });
+  document.getElementById('e-save').onclick=saveEditPerson;
+  document.getElementById('e-delete').onclick=()=>{ const id=editingId; closeEdit(); if(id!=null) deletePerson(id); };
+})();
 
 // Peer-to-peer: small tables of peers — same function, matched by company tier.
 // VIP tier is used as the company-stature proxy (tier 1 = biggest / most senior),
@@ -452,7 +517,7 @@ function initState(){
   const ev = EVENTS[EVENT];
   state = load();
   if(!state){
-    state = {assign:{}, caps:{}, tables:[], filters:{q:'',cat:'',din:''}, added:[], deleted:[], nextId:10000};
+    state = {assign:{}, caps:{}, tables:[], filters:{q:'',cat:'',din:''}, added:[], deleted:[], edits:{}, nextId:10000};
     if(EVENT==='summit'){
       autoArrange(ev.defTables, ev.defCap);       // auto-group summit on first load
     } else if(EVENT==='p2p'){
@@ -469,6 +534,7 @@ function initState(){
   if(!state.filters) state.filters={q:'',cat:'',din:''};
   if(!state.added) state.added=[];
   if(!state.deleted) state.deleted=[];
+  if(!state.edits) state.edits={};
   if(state.nextId==null) state.nextId=10000;
   rebuildPeople();
 }
@@ -508,6 +574,7 @@ function personCard(p, inTable){
     el.classList.add('dragging');
   });
   el.addEventListener('dragend',()=>el.classList.remove('dragging'));
+  el.addEventListener('contextmenu',e=>{ e.preventDefault(); openEditPerson(p.id); });
   const del=el.querySelector('.del');
   del.addEventListener('mousedown',e=>e.stopPropagation());
   del.addEventListener('click',e=>{ e.stopPropagation(); deletePerson(p.id); });
@@ -558,6 +625,19 @@ function renderBoard(){
         const m=matchesFilter(byId(+el.dataset.id));
         el.classList.toggle('hit', m); el.classList.toggle('dim', !m);
       });
+    }
+    // flag guests from the same company seated together
+    const cco={};
+    occ.forEach(p=>{ const c=(p.company||'').trim().toLowerCase(); if(c) cco[c]=(cco[c]||0)+1; });
+    if(Object.values(cco).some(v=>v>1)){
+      seats.querySelectorAll('.person').forEach(el=>{
+        const p=byId(+el.dataset.id); const c=(p.company||'').trim().toLowerCase();
+        if(c&&cco[c]>1) el.classList.add('dupco');
+      });
+      const cos=[...new Set(occ.map(p=>(p.company||'').trim()).filter(c=>c&&cco[c.toLowerCase()]>1))];
+      const w=document.createElement('span'); w.className='tn-warn'; w.textContent='⚠ same company';
+      w.title='Same company seated together: '+cos.join(', ');
+      node.querySelector('.tn-head').appendChild(w);
     }
     node.querySelector('[data-act="inc"]').onclick=()=>{state.caps[t]=Math.min(12,cap+1);save();renderAll();};
     node.querySelector('[data-act="dec"]').onclick=()=>{state.caps[t]=Math.max(1,cap-1);save();renderAll();};
