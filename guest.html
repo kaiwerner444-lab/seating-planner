@@ -3,64 +3,105 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Find Your Seat</title>
+<title>Find Your Seat · Radical Innovators Collaborative</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --line:#2a2f3a;
-    --ink:#e8eaf0; --muted:#9aa3b2; --muted2:#6b7280; --accent:#6ea8fe; --accent2:#3b82f6;
-    --good:#34d399; --warn:#fbbf24;
-    --c-Technology:#5b9bff;--c-HR:#f4a259;--c-CPO:#fb923c;--c-Sponsors:#c084fc;--c-Media:#22d3ee;
-    --c-Founder:#34d399;--c-CEO:#f472b6;--c-COO:#a3e635;--c-CFO:#fbbf24;--c-President:#fb7185;
-    --c-Facilitator:#94a3b8;--c-Host:#fde047;--c-Other:#94a3b8;
+    --maroon:#6E1423; --maroon2:#8a1b30; --maroon-deep:#560e1b; --panel:#7d1a2c; --panel2:#681521;
+    --line:rgba(255,255,255,.16); --ink:#fdeef0; --muted:#e7b9c1; --muted2:#cf9aa4;
+    --orange:#f4791f; --orange2:#f7941e; --grad:linear-gradient(135deg,#f7941e 0%,#ef5a23 55%,#d83820 100%);
+    --good:#7fe0b0;
+    --c-Technology:#f7941e;--c-HR:#ff8a5b;--c-CPO:#ff8a5b;--c-Sponsors:#e9a6ff;--c-Media:#7fd8e8;
+    --c-Founder:#7fe0b0;--c-CEO:#ff9ec4;--c-COO:#cfe87f;--c-CFO:#ffd27f;--c-President:#ff9aa6;
+    --c-Facilitator:#e7b9c1;--c-Host:#ffe08a;--c-Other:#e7b9c1;
   }
   *{box-sizing:border-box}
   html,body{margin:0;min-height:100%}
-  body{background:radial-gradient(1200px 600px at 50% -10%, #1a2030, var(--bg)); color:var(--ink);
-    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    display:flex;flex-direction:column;align-items:center;padding:28px 16px 60px}
-  .wrap{width:100%;max-width:560px}
-  h1{font-size:24px;margin:6px 0 2px;text-align:center;letter-spacing:.2px}
-  .sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:20px}
-  .tabs{display:flex;gap:5px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px;margin:0 auto 18px;width:fit-content;max-width:100%;flex-wrap:wrap;justify-content:center}
-  .tabs button{background:transparent;border:none;color:var(--muted);padding:8px 16px;border-radius:9px;
-    cursor:pointer;font-weight:600;font-size:14px}
-  .tabs button.active{background:var(--accent2);color:#fff}
+  body{
+    background:var(--maroon);
+    color:var(--ink); font:15px/1.5 "Poppins",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    display:flex;flex-direction:column;align-items:center;padding:30px 16px 70px;position:relative;overflow-x:hidden;
+  }
+  /* orange decorative blobs like the deck */
+  body::before,body::after{content:"";position:fixed;border-radius:50%;filter:blur(8px);z-index:0;pointer-events:none}
+  body::before{width:300px;height:300px;left:-180px;top:-150px;opacity:.6;
+    background:radial-gradient(circle at 70% 70%,#f7941e,#ef5a23 55%,rgba(216,56,32,0) 72%)}
+  body::after{width:260px;height:260px;left:-160px;bottom:-150px;opacity:.5;
+    background:radial-gradient(circle at 70% 30%,#f7941e,#e0451f 55%,rgba(216,56,32,0) 72%)}
+  .wrap{width:100%;max-width:560px;position:relative;z-index:1}
+  /* logo */
+  .brand{display:flex;align-items:center;gap:14px;justify-content:center;margin-bottom:26px}
+  .brand .mark{width:52px;height:52px;flex-shrink:0}
+  .brand .word{font-family:"Quicksand",sans-serif;font-weight:600;color:#fff;line-height:1.04;font-size:18px;letter-spacing:.2px}
+  h1{font-family:"Quicksand",sans-serif;font-size:30px;font-weight:700;margin:4px 0 4px;text-align:center;color:var(--orange);letter-spacing:.3px}
+  .sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:22px;letter-spacing:.4px;text-transform:uppercase;font-weight:500}
   .searchbox{position:relative}
-  #q{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:14px;
-    padding:15px 16px;font-size:17px;color:var(--ink)}
-  #q:focus{outline:none;border-color:var(--accent)}
-  #results{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--panel);border:1px solid var(--line);
-    border-radius:12px;overflow:hidden;z-index:5;max-height:320px;overflow-y:auto;box-shadow:0 14px 40px rgba(0,0,0,.5)}
-  #results .r{padding:11px 15px;cursor:pointer;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  #q{width:100%;background:rgba(255,255,255,.07);border:1.5px solid var(--line);border-radius:16px;
+    padding:16px 18px;font-size:17px;color:#fff;font-family:inherit}
+  #q::placeholder{color:var(--muted2)}
+  #q:focus{outline:none;border-color:var(--orange);background:rgba(255,255,255,.1)}
+  #results{position:absolute;left:0;right:0;top:calc(100% + 6px);background:#7d1a2c;border:1px solid var(--line);
+    border-radius:14px;overflow:hidden;z-index:5;max-height:330px;overflow-y:auto;box-shadow:0 18px 50px rgba(0,0,0,.5)}
+  #results .r{padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px}
   #results .r:last-child{border-bottom:none}
-  #results .r:hover{background:var(--panel2)}
+  #results .r:hover{background:rgba(255,255,255,.08)}
   #results .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
   #results .r b{font-weight:600}
   #results .r span{color:var(--muted);font-size:12.5px}
-  .card{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px;display:none}
+  .card{margin-top:22px;background:linear-gradient(180deg,#7d1a2c,#6b1521);border:1px solid var(--line);
+    border-radius:22px;padding:26px;display:none;box-shadow:0 20px 60px rgba(0,0,0,.35)}
   .card.show{display:block;animation:fade .25s ease}
-  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-  .who{font-size:20px;font-weight:700}
-  .who small{display:block;color:var(--muted);font-weight:400;font-size:13.5px;margin-top:2px}
-  .seat{margin:20px 0 6px;text-align:center}
-  .seat .big{font-size:54px;font-weight:800;letter-spacing:-1px;line-height:1}
-  .seat .lbl{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px}
-  .seat.none .big{font-size:22px;color:var(--warn);font-weight:700}
-  .mates{margin-top:18px;border-top:1px solid var(--line);padding-top:16px}
-  .mates h3{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 12px}
-  .mate{display:flex;align-items:center;gap:11px;padding:8px 0}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .who{font-family:"Quicksand",sans-serif;font-size:22px;font-weight:700;color:#fff}
+  .who small{display:block;color:var(--muted);font-weight:400;font-size:13.5px;margin-top:3px;font-family:"Poppins"}
+  .seat{margin:22px 0 6px;text-align:center}
+  .seat .lbl{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px}
+  .seat .big{font-family:"Quicksand",sans-serif;font-size:72px;font-weight:700;line-height:1;
+    background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .seat.none .big{font-size:24px;color:var(--orange2);-webkit-text-fill-color:var(--orange2)}
+  .mates{margin-top:20px;border-top:1px solid var(--line);padding-top:18px}
+  .mates h3{font-size:11.5px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin:0 0 14px;font-weight:600}
+  .mate{display:flex;align-items:center;gap:12px;padding:9px 0}
   .mate .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-  .mate .nm{font-weight:600;font-size:14.5px}
+  .mate .nm{font-weight:600;font-size:14.5px;color:#fff}
   .mate .co{color:var(--muted);font-size:12.5px}
   .empty{color:var(--muted2);text-align:center;padding:24px;font-size:14px}
-  .live{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:26px;color:var(--muted2);font-size:11.5px}
-  .live .pulse{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 0 rgba(52,211,153,.6);animation:pl 2s infinite}
-  @keyframes pl{0%{box-shadow:0 0 0 0 rgba(52,211,153,.5)}70%{box-shadow:0 0 0 7px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+  .live{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:30px;color:var(--muted2);font-size:11.5px;letter-spacing:.3px}
+  .live .pulse{width:7px;height:7px;border-radius:50%;background:var(--good);animation:pl 2s infinite}
+  @keyframes pl{0%{box-shadow:0 0 0 0 rgba(127,224,176,.5)}70%{box-shadow:0 0 0 7px rgba(127,224,176,0)}100%{box-shadow:0 0 0 0 rgba(127,224,176,0)}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div class="wrap">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-label="RIC logo">
+      <g fill="#ffffff">
+        <!-- X arms connecting the four lobes -->
+        <path d="M60 60 L30 30" stroke="#fff" stroke-width="20" stroke-linecap="round"/>
+        <path d="M60 60 L90 30" stroke="#fff" stroke-width="20" stroke-linecap="round"/>
+        <path d="M60 60 L30 90" stroke="#fff" stroke-width="20" stroke-linecap="round"/>
+        <path d="M60 60 L90 90" stroke="#fff" stroke-width="20" stroke-linecap="round"/>
+        <!-- four corner lobes -->
+        <circle cx="26" cy="26" r="16"/>
+        <circle cx="94" cy="26" r="16"/>
+        <circle cx="26" cy="94" r="16"/>
+        <circle cx="94" cy="94" r="16"/>
+        <!-- top & bottom head dots -->
+        <circle cx="60" cy="20" r="11"/>
+        <circle cx="60" cy="100" r="11"/>
+        <!-- center band -->
+        <rect x="18" y="46" width="84" height="28" rx="9"/>
+      </g>
+      <!-- RIC knocked out in maroon -->
+      <text x="60" y="67" text-anchor="middle" font-family="Quicksand,Arial,sans-serif" font-weight="700"
+            font-size="22" fill="#6E1423" letter-spacing="3">RIC</text>
+    </svg>
+    <div class="word">radical innovators<br>collaborative</div>
+  </div>
+
   <h1>Find your seat</h1>
   <div class="sub" id="event-sub">Peer-to-Peer</div>
   <div class="searchbox">
@@ -80,7 +121,7 @@ const CLOUD_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 let sb=null; try{ sb=window.supabase.createClient(CLOUD_URL,CLOUD_KEY); }catch(e){}
 
 let EVENT='p2p';
-let assign={};      // event -> {id: table}
+let assign={};
 let selectedId=null;
 
 function esc(s){return String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
@@ -92,6 +133,7 @@ async function loadSeating(ev){
   if(!sb){ assign[ev]=null; return; }
   try{ const {data}=await sb.from('seating_state').select('state').eq('event',ev).maybeSingle();
     assign[ev]= (data&&data.state&&data.state.assign) ? data.state.assign : null;
+    if(selectedId!=null && ev===EVENT) renderCard();
   }catch(e){ assign[ev]=null; }
 }
 
@@ -135,20 +177,10 @@ function renderCard(){
   card.classList.add('show');
 }
 
-function setEvent(ev){
-  EVENT=ev;
-  document.getElementById('event-sub').textContent=EVENTS[ev];
-  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.ev===ev));
-  selectedId=null; q.value=''; card.classList.remove('show'); results.style.display='none';
-  if(assign[ev]===undefined) loadSeating(ev).then(()=>{});
-}
-
-document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>setEvent(b.dataset.ev));
 q.addEventListener('input',renderResults);
 q.addEventListener('focus',renderResults);
 document.addEventListener('click',e=>{ if(!e.target.closest('.searchbox')) results.style.display='none'; });
 
-// live updates
 if(sb){
   sb.channel('guest_view').on('postgres_changes',{event:'*',schema:'public',table:'seating_state'},payload=>{
     const row=payload.new; if(!row) return;
@@ -157,8 +189,7 @@ if(sb){
   }).subscribe();
 }
 
-// preload all events' seating
-['dinner','summit','p2p'].forEach(ev=>loadSeating(ev));
+loadSeating('p2p');
 </script>
 </body>
 </html>
