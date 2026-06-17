@@ -62,12 +62,7 @@
 <body>
 <div class="wrap">
   <h1>Find your seat</h1>
-  <div class="sub" id="event-sub">Beefbar Dinner</div>
-  <div class="tabs" id="tabs">
-    <button data-ev="dinner" class="active">Dinner</button>
-    <button data-ev="summit">Summit</button>
-    <button data-ev="p2p">Peer-to-Peer</button>
-  </div>
+  <div class="sub" id="event-sub">Peer-to-Peer Dinner</div>
   <div class="searchbox">
     <input id="q" placeholder="Type your name…" autocomplete="off">
     <div id="results" style="display:none"></div>
@@ -84,7 +79,7 @@ const CLOUD_URL='https://pzbzgeviebzgripbwqgh.supabase.co';
 const CLOUD_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6YnpnZXZpZWJ6Z3JpcGJ3cWdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjY0NjIsImV4cCI6MjA5NzIwMjQ2Mn0.rBvCLGk3pWcYEvKvtxd_CMgu7lpe_QW8ixxmdR1cJNI';
 let sb=null; try{ sb=window.supabase.createClient(CLOUD_URL,CLOUD_KEY); }catch(e){}
 
-let EVENT='dinner';
+let EVENT='p2p';
 let assign={};      // event -> {id: table}
 let selectedId=null;
 
